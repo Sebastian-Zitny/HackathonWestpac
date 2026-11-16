@@ -83,7 +83,7 @@ Clicking a scenario card resets the fictional balances for that scenario. Your s
 
 **Scenario 2 — High trust, quick approval** (Everyday $65 · Savings $1,200 · groceries $80)
 1. Click *Weekly groceries* → **Tap card**. The terminal declines; the AI scores about 97/100.
-2. The phone shows: *"Insufficient funds. Transfer $15.00 from Savings…"* → **Approve** → **Approve $15.00 transfer**. No PIN is needed.
+2. The phone shows: *"Insufficient funds. Transfer $15.00 from Savings…"* → tap **Approve** once. That's it: high-trust top-ups are a single click, with no extra screen or PIN. Tap **Why?** instead to see the AI's trust check first.
 3. **Tap card again** → approved. Everyday $0.00 · Savings $1,185.00. The transfer and the purchase are both recorded.
 
 **Scenario 1 — Low trust, enhanced authentication** (Everyday $900 · Savings $2,500 · iPhone $1,000 at an unfamiliar Sydney store)
@@ -95,7 +95,7 @@ Clicking a scenario card resets the fictional balances for that scenario. Your s
 **Scenario 3 — Very high trust, regular merchant** (Everyday $50 · Savings $800 · fuel $75 at the regular station)
 1. **Tap card** → declined. The AI scores about 96/100 and recognises Metro Fuel from 12 visits in the purchase history.
 2. The phone still asks: *"Transfer $25.00 from Savings…? Nothing moves unless you approve."* A countdown shows the 5-minute approval window.
-3. **Approve** → one tap → **Tap card again** → approved. Everyday $0.00 · Savings $775.00.
+3. Tap **Approve** once in the notification → **Tap card again** → approved. Everyday $0.00 · Savings $775.00.
 4. Tap **Tap again** to show that the customer isn't charged twice.
 
 **Showing the controls (optional)**
@@ -103,7 +103,8 @@ All demo controls (reset, simulated time, security hold, app sign-in) are under 
 - **Simulated time 23:30**, then replay Scenario 3. It's outside the one-tap hours, so the customer must confirm with biometrics or PIN.
 - **Security hold ON**, then replay Scenario 3. It is blocked even though the trust score is 96.
 - **Custom purchase:** $290 at Metro Fuel. The merchant is familiar but the amount is unusual, so one-tap approval isn't offered.
-- **Learning from history:** buy at QuickBite Burgers (a new merchant, so PIN required). Then open **Settings → Familiar merchants**: QuickBite now appears, and the next purchase there is no longer treated as a first visit.
+- **Learning from history:** buy at QuickBite Burgers (a new merchant, so PIN required). Then open **Accounts → Cards → AutoTopUp limits & security → Familiar merchants**: QuickBite now appears, and the next purchase there is no longer treated as a first visit.
+- **Card switch:** in **Accounts → Cards**, switch AutoTopUp off for the card, then replay a scenario. The payment simply declines. Switch it back on to continue.
 - **Approval window:** start a top-up and don't respond. When the countdown reaches 0:00 the request expires and no money moves.
 
 Prototype PIN: **1234**. Biometrics are simulated.
@@ -114,7 +115,7 @@ Prototype PIN: **1234**. Biometrics are simulated.
 
 ```
 ┌──────────── React + TypeScript (Vite) · Westpac GEL design system (@westpac/ui, WBC theme) ─────────┐
-│ Terminal  ·  Phone: Dashboard / Pay / AI Analysis / Approve+Auth / Result / Insights / Settings  ·  Demo panel │
+│ Terminal  ·  Phone: Home / Accounts+Cards / Payments / AI Analysis / Approve+Auth / Result / Limits  ·  Demo panel │
 └───────────────────────────────────────────────┬─────────────────────────────────────────────────────┘
                                                 │ JSON over /api  (integer cents everywhere)
 ┌───────────────────────────────────────── FastAPI + Pydantic ─────────────────────────────────────────┐
@@ -163,8 +164,8 @@ The interface is built on Westpac's open-source **GEL design system** ([GEL-next
 - **Font:** the licensed Westpac brand font is not bundled, so GEL's system font stack is used.
 
 The phone app follows the familiar Westpac mobile banking layout:
-- Five tabs: Home, Accounts, Payments, Insights and More.
-- A gradient "Hi Riley" home header with search.
+- Three tabs: Home, Accounts and Payments. The demo focuses on the look of the app plus the AutoTopUp feature, so unrelated banking sections are left out.
+- A gradient "Hi Riley" home header, then your accounts.
 - Navy section headings with ›.
 - Account cards with a card row, tile grids and red-outline buttons.
 
@@ -199,7 +200,7 @@ AutoTopUp enabled · source/destination accounts authorised · savings has enoug
 Additional escalations:
 - An unfamiliar merchant requires enhanced authentication (if that setting is on).
 - Three or more requests in 24 h require enhanced authentication.
-- One-tap approval needs every condition to hold: high trust, a merchant recognised from purchase history, signed in, within one-tap hours, bills still covered, and no repeated requests. Otherwise biometrics or PIN is required.
+- One-tap approval (a single click in the notification) needs every condition to hold: high trust, a merchant recognised from purchase history, signed in, within one-tap hours, bills still covered, and no repeated requests. Otherwise biometrics or PIN is required.
 - A familiar merchant never turns an unusual purchase into a one-tap approval.
 
 Robustness:
@@ -212,7 +213,7 @@ Robustness:
 
 ## Customer settings (all of them change decisions)
 
-- On/off
+- On/off **per card**, as a switch in **Accounts → Cards**
 - Source and destination accounts
 - Maximum per transfer
 - Maximum per day (amount and count)
@@ -222,7 +223,7 @@ Robustness:
 - Preferred authentication (biometric/PIN)
 - Notification preferences
 
-Settings are persisted in SQLite. Familiar merchants are shown read-only in Settings: the AI learns them from purchase history, so there's no list to edit.
+Limits and security live in **AutoTopUp limits & security**, opened from the card. Settings are persisted in SQLite. Familiar merchants are shown read-only there: the AI learns them from purchase history, so there's no list to edit.
 
 ## Project structure
 
@@ -247,7 +248,7 @@ autotopup-ai/
 │   ├── App.tsx  store.tsx     layout + app state / flow orchestration
 │   ├── index.css              GEL Tailwind setup + WBC theme import
 │   ├── components/            Terminal, Phone, DemoPanel, AssessmentView, ui
-│   ├── screens/               Dashboard, Pay/Analysis/Approve/Result, Insights, Settings
+│   ├── screens/               Home, Accounts/Cards, Payments/Analysis/Approve/Result, Settings
 │   └── lib/                   typed API client, formatting
 ├── docs/                      architecture, AI, design system, limitations
 ├── frontend/postcss.config.mjs  official GEL PostCSS config
@@ -285,9 +286,9 @@ See [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md). In short:
 
 ## Screenshots
 
-| Home (banking-app layout) | Payments | Insights & tools |
+| Home | One-tap approval done | Accounts → Cards (AutoTopUp switch) |
 |---|---|---|
-| ![](docs/screenshots/home.png) | ![](docs/screenshots/payments.png) | ![](docs/screenshots/insights.png) |
+| ![](docs/screenshots/home.png) | ![](docs/screenshots/one-tap-approved.png) | ![](docs/screenshots/cards.png) |
 
 | Scenario 3 — approval request with countdown | Scenario 1 — AI analysis | Familiar merchants learned by AI |
 |---|---|---|

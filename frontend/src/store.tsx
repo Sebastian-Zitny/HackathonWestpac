@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { api, ApiError, type AppState, type IntentView, type Offer } from './lib/api'
 import { money } from './lib/format'
 
-export type Screen = 'home' | 'accounts' | 'pay' | 'insights' | 'more' | 'settings' | 'analysis' | 'approve' | 'result'
+export type Screen = 'home' | 'accounts' | 'cards' | 'pay' | 'settings' | 'analysis' | 'approve' | 'result'
 export type Phase =
   | 'idle' | 'processing' | 'assessing' | 'awaiting' | 'transferring' | 'retap'
   | 'approved' | 'blocked' | 'topup_declined' | 'duplicate'
@@ -29,6 +29,7 @@ interface Store {
   approve: (body: Parameters<typeof api.approve>[1]) => Promise<IntentView | ApiError>
   declineTopUp: () => Promise<void>
   openApproval: () => void
+  approveFromBanner: () => Promise<void>
   newPurchase: () => void
 }
 
@@ -108,7 +109,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const sc = r.state.scenarios.find((s) => s.id === n)!
     setPurchaseRaw({ merchant_id: sc.merchant_id, amount_cents: sc.amount_cents, item: sc.item, scenarioId: n })
     clearFlow()
-    setScreen('home')
+    setScreen((cur) => (['approve', 'result', 'analysis'].includes(cur) ? 'pay' : cur))
     addLog(`Scenario ${n} loaded — ${sc.title}. Balances reset to Everyday ${money(sc.everyday_cents)}, Savings ${money(sc.savings_cents)}.`)
   }, [addLog])
 
@@ -205,6 +206,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [view, addLog, showBanner, refresh])
 
+  // High-trust (one-tap) requests are approved straight from the notification: a single click.
+  // Other workflows open the approval screen for biometric / PIN verification.
+  const approveFromBanner = useCallback(async () => {
+    if (view?.offer?.workflow === 'QUICK_APPROVE') {
+      setBanner(null)
+      setScreen('approve')
+      await approve({ method: 'tap' })
+    } else {
+      openApproval()
+    }
+  }, [view, approve, openApproval])
+
   const declineTopUp = useCallback(async () => {
     const offer = view?.offer
     if (!offer) return
@@ -222,8 +235,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const value = useMemo<Store>(() => ({
     app, screen, setScreen, purchase, setPurchase, view, phase, offer: view?.offer ?? null,
     banner, dismissBanner: () => setBanner(null), secondsLeft, log, error, setError, backendDown,
-    refresh, loadScenario, resetAll, tapCard, approve, declineTopUp, openApproval, newPurchase,
-  }), [app, screen, purchase, view, phase, banner, secondsLeft, log, error, backendDown, refresh, loadScenario, resetAll, tapCard, approve, declineTopUp, openApproval, newPurchase])
+    refresh, loadScenario, resetAll, tapCard, approve, declineTopUp, openApproval, approveFromBanner, newPurchase,
+  }), [app, screen, purchase, view, phase, banner, secondsLeft, log, error, backendDown, refresh, loadScenario, resetAll, tapCard, approve, declineTopUp, openApproval, approveFromBanner, newPurchase])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

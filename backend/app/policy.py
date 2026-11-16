@@ -98,8 +98,8 @@ def mandatory_checks(ctx: PolicyContext) -> list[dict]:
         status = "pending" if ok is None else ("pass" if ok else "fail")
         checks.append({"id": cid, "label": label, "status": status, "detail": detail, "mandatory": True})
 
-    add("enabled", "AutoTopUp is switched on", bool(s.get("enabled")),
-        "Enabled in your settings" if s.get("enabled") else "AutoTopUp is turned off in settings")
+    add("enabled", "AutoTopUp is on for this card", bool(s.get("enabled")),
+        "Switched on for this card" if s.get("enabled") else "AutoTopUp is switched off for this card")
 
     accounts_ok = (ctx.source_exists and ctx.destination_exists
                    and s.get("source_account_id") != s.get("destination_account_id"))

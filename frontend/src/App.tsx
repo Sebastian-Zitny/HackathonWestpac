@@ -10,9 +10,7 @@ import { DemoPanel } from './components/DemoPanel'
 import { Dashboard } from './screens/Dashboard'
 import { SettingsScreen } from './screens/SettingsScreen'
 import { AnalysisScreen, ApproveScreen, PayScreen, ResultScreen } from './screens/FlowScreens'
-import { InsightsScreen } from './screens/InsightsScreen'
 import { AccountsScreen } from './screens/AccountsScreen'
-import { MoreScreen } from './screens/MoreScreen'
 import { ErrorBoundary } from './components/ErrorBoundary'
 
 function PhoneContent() {
@@ -23,9 +21,8 @@ function PhoneContent() {
 function ScreenSwitch({ screen }: { screen: string }) {
   switch (screen) {
     case 'pay': return <PayScreen />
-    case 'accounts': return <AccountsScreen />
-    case 'more': return <MoreScreen />
-    case 'insights': return <InsightsScreen />
+    case 'accounts':
+    case 'cards': return <AccountsScreen />
     case 'settings': return <SettingsScreen />
     case 'analysis': return <AnalysisScreen />
     case 'approve': return <ApproveScreen />

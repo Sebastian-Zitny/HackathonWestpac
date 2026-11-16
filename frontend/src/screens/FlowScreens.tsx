@@ -62,10 +62,10 @@ export function PayScreen() {
             <ArrowLeftIcon size="small" color="primary" aria-hidden /> The payment terminal is on the left.
           </p>
           <div className="mt-3 grid grid-cols-2 gap-1.5">
-            <Tile icon={TransferIcon} label="AutoTopUp settings" onClick={() => setScreen('settings')} />
+            <Tile icon={TransferIcon} label="Card & AutoTopUp" onClick={() => setScreen('cards')} />
             <Tile icon={StarsIcon} label="AI analysis" onClick={() => setScreen('analysis')} />
             <Tile icon={HistoryClockIcon} label="Transaction history" onClick={() => setScreen('accounts')} />
-            <Tile icon={CreditCardIcon} label="View digital card" onClick={() => setScreen('accounts')} />
+            <Tile icon={CreditCardIcon} label="AutoTopUp limits" onClick={() => setScreen('settings')} />
           </div>
         </div>
       ) : (

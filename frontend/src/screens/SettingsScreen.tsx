@@ -58,14 +58,15 @@ export function SettingsScreen() {
 
   return (
     <div className="anim-fade-up min-h-full bg-background-pale pb-14">
-      <PageHeader title="AutoTopUp" onBack={() => setScreen('more')} />
+      <PageHeader title="AutoTopUp limits" onBack={() => setScreen('cards')} />
       <div className="px-2 pt-2">
       <p className="mb-2 typography-body-10 text-text-muted">You stay in control. Every setting here changes how top-ups are decided.</p>
       <Alert look="info" className="mb-0 rounded-2xl">AutoTopUp only moves your own money between your accounts. It never creates credit, a loan or an overdraft.</Alert>
 
-      <Card className="mt-2 px-2.5 py-1">
-        <Toggle label="AutoTopUp" hint="Offer a transfer from savings when a card payment would decline" checked={s.enabled} onChange={(v) => up({ enabled: v })} />
-      </Card>
+      <p className="mt-2 px-0.5 typography-body-10 text-text-muted">
+        AutoTopUp is <b className="text-text-body">{app.settings.enabled ? 'on' : 'off'}</b> for your card.{' '}
+        <button onClick={() => setScreen('cards')} className="text-text-primary underline focus-visible:focus-outline">Change it in Accounts → Cards</button>
+      </p>
 
       <SectionTitle>Accounts</SectionTitle>
       <Card className="space-y-2 p-2.5">

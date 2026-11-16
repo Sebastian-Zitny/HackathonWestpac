@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Button } from '@westpac/ui/button'
-import { AccountIcon, CloseIcon, DollarIcon, HouseIcon, LightBulbIcon, TilesIcon, TransferIcon } from '@westpac/ui/icon'
+import { AccountIcon, CloseIcon, DollarIcon, HouseIcon, TransferIcon } from '@westpac/ui/icon'
 import { useStore, type Screen } from '../store'
 import { clock, cx, timeLabel } from '../lib/format'
 
@@ -15,7 +15,7 @@ function StatusGlyphs() {
 }
 
 function Banner() {
-  const { banner, dismissBanner, openApproval, declineTopUp, setScreen, offer, phase, secondsLeft } = useStore()
+  const { banner, dismissBanner, approveFromBanner, declineTopUp, setScreen, offer, phase, secondsLeft } = useStore()
   useEffect(() => {
     if (!banner || banner.kind === 'topup_request') return
     const t = setTimeout(dismissBanner, 7000)
@@ -51,7 +51,7 @@ function Banner() {
           <div className="grid grid-cols-3 gap-1 border-t border-border-muted-soft p-1.5">
             <Button size="medium" look="link" onClick={() => { dismissBanner(); setScreen('analysis') }}>Why?</Button>
             <Button size="medium" look="faint" soft onClick={declineTopUp}>Decline</Button>
-            <Button size="medium" look="primary" onClick={openApproval}>Approve</Button>
+            <Button size="medium" look="primary" onClick={approveFromBanner}>Approve</Button>
           </div>
         )}
         {banner.kind === 'transfer' && (
@@ -68,13 +68,11 @@ const NAV: { id: Screen; label: string; icon: typeof HouseIcon }[] = [
   { id: 'home', label: 'Home', icon: HouseIcon },
   { id: 'accounts', label: 'Accounts', icon: AccountIcon },
   { id: 'pay', label: 'Payments', icon: DollarIcon },
-  { id: 'insights', label: 'Insights', icon: LightBulbIcon },
-  { id: 'more', label: 'More', icon: TilesIcon },
 ]
 
 export function Phone({ children }: { children: ReactNode }) {
   const { app, screen, setScreen } = useStore()
-  const active = NAV.some((n) => n.id === screen) ? screen : ['analysis', 'approve', 'result'].includes(screen) ? 'pay' : screen === 'settings' ? 'more' : 'home'
+  const active = NAV.some((n) => n.id === screen) ? screen : ['analysis', 'approve', 'result'].includes(screen) ? 'pay' : ['settings', 'cards'].includes(screen) ? 'accounts' : 'home'
   const mainRef = useRef<HTMLElement>(null)
   const [scrolled, setScrolled] = useState(false)
   useEffect(() => { mainRef.current?.scrollTo(0, 0); setScrolled(false) }, [screen])
@@ -91,7 +89,7 @@ export function Phone({ children }: { children: ReactNode }) {
         </div>
         <Banner />
         <main ref={mainRef} onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 120)} className="scrollbar-thin relative flex-1 overflow-y-auto" aria-label="AutoTopUp AI mobile banking (simulated)">{children}</main>
-        <nav aria-label="Main" className="z-20 grid shrink-0 grid-cols-5 border-t border-border-muted-soft bg-surface-mono pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_8px_rgba(0,0,0,.04)]">
+        <nav aria-label="Main" className="z-20 grid shrink-0 grid-cols-3 border-t border-border-muted-soft bg-surface-mono pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_8px_rgba(0,0,0,.04)]">
           {NAV.map((n) => {
             const on = active === n.id
             return (
