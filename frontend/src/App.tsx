@@ -11,6 +11,8 @@ import { Dashboard } from './screens/Dashboard'
 import { SettingsScreen } from './screens/SettingsScreen'
 import { AnalysisScreen, ApproveScreen, PayScreen, ResultScreen } from './screens/FlowScreens'
 import { InsightsScreen } from './screens/InsightsScreen'
+import { AccountsScreen } from './screens/AccountsScreen'
+import { MoreScreen } from './screens/MoreScreen'
 import { ErrorBoundary } from './components/ErrorBoundary'
 
 function PhoneContent() {
@@ -21,6 +23,8 @@ function PhoneContent() {
 function ScreenSwitch({ screen }: { screen: string }) {
   switch (screen) {
     case 'pay': return <PayScreen />
+    case 'accounts': return <AccountsScreen />
+    case 'more': return <MoreScreen />
     case 'insights': return <InsightsScreen />
     case 'settings': return <SettingsScreen />
     case 'analysis': return <AnalysisScreen />
@@ -37,13 +41,13 @@ function SiteHeader() {
       <div className="mx-auto flex max-w-[1400px] items-center gap-2 px-2 py-1.5 sm:px-3">
         <span className="grid size-6 shrink-0 place-items-center rounded-2xl bg-surface-primary text-text-mono"><TransferIcon size="small" aria-hidden /></span>
         <div className="min-w-0">
-          <p className="typography-body-8 font-bold leading-tight text-text-heading">AutoTopUp <span className="text-text-primary">AI</span></p>
-          <p className="truncate typography-body-10 text-text-muted">Never get caught short at checkout.</p>
+          <p className="whitespace-nowrap typography-body-8 font-bold leading-tight text-text-heading">AutoTopUp <span className="text-text-primary">AI</span></p>
+          <p className="hidden truncate typography-body-10 text-text-muted sm:block">Never get caught short at checkout.</p>
         </div>
         <nav aria-label="Project" className="ml-auto hidden items-center gap-3 typography-body-10 text-text-heading md:flex">
           <span className="font-bold">Westpac Innovation and Coding Competition 2026</span>
         </nav>
-        <Badge color="hero" soft className="ml-auto shrink-0 md:ml-2">Hackathon prototype · simulated data</Badge>
+        <Badge color="hero" soft className="ml-auto shrink-0 md:ml-2"><span className="sm:hidden">Prototype · simulated</span><span className="hidden sm:inline">Hackathon prototype · simulated data</span></Badge>
       </div>
     </header>
   )

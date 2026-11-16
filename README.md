@@ -162,6 +162,14 @@ The interface is built on Westpac's open-source **GEL design system** ([GEL-next
 - **Original elements:** the product mark is our own and no Westpac logo is used. The Westpac-style header carries a "Hackathon prototype · simulated data" tag.
 - **Font:** the licensed Westpac brand font is not bundled, so GEL's system font stack is used.
 
+The phone app follows the familiar Westpac mobile banking layout:
+- Five tabs: Home, Accounts, Payments, Insights and More.
+- A gradient "Hi Riley" home header with search.
+- Navy section headings with ›.
+- Account cards with a card row, tile grids and red-outline buttons.
+
+All of this is built from GEL tokens and components, with our own product mark and no Westpac logo.
+
 Details, the token mapping and the axe-core accessibility results are in [`docs/DESIGN-SYSTEM.md`](docs/DESIGN-SYSTEM.md).
 
 ## How AI is used
@@ -276,6 +284,10 @@ See [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md). In short:
   - regulatory, privacy and accessibility review
 
 ## Screenshots
+
+| Home (banking-app layout) | Payments | Insights & tools |
+|---|---|---|
+| ![](docs/screenshots/home.png) | ![](docs/screenshots/payments.png) | ![](docs/screenshots/insights.png) |
 
 | Scenario 3 — approval request with countdown | Scenario 1 — AI analysis | Familiar merchants learned by AI |
 |---|---|---|

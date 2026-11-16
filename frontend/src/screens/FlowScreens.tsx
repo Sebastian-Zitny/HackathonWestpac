@@ -3,7 +3,7 @@ import { Alert } from '@westpac/ui/alert'
 import { Badge } from '@westpac/ui/badge'
 import { Button } from '@westpac/ui/button'
 import {
-  ArrowLeftIcon, ArrowRightIcon, BackspaceIcon, ErrorIcon, FingerprintIcon, KeyIcon, PadlockIcon, PiggyBankIcon,
+  ArrowLeftIcon, ArrowRightIcon, BackspaceIcon, CreditCardIcon, DollarIcon, HistoryClockIcon, ListIcon, StarsIcon, ErrorIcon, FingerprintIcon, KeyIcon, PadlockIcon, PiggyBankIcon,
   SecurityIcon, TickCircleIcon, TransferIcon, WalletIcon,
 } from '@westpac/ui/icon'
 import { useStore } from '../store'
@@ -11,7 +11,7 @@ import { api, ApiError, type Assessment } from '../lib/api'
 import { clock, cx, money, timeLabel } from '../lib/format'
 import { AssessmentView } from '../components/AssessmentView'
 import { PurchasePicker, Terminal } from '../components/Terminal'
-import { bandOf, Card, PageTitle, Spinner } from '../components/ui'
+import { bandOf, Card, PageHeader, Spinner, Tile } from '../components/ui'
 import { TxnRow } from './Dashboard'
 
 function Header({ title, back }: { title: string; back?: () => void }) {
@@ -41,17 +41,55 @@ function BalanceRows({ rows }: { rows: { icon: typeof WalletIcon; name: string; 
   )
 }
 
-/* ---------------- Screen 3: payment (phone view) ---------------- */
+/* ---------------- Screen 3: Payments (phone view) ---------------- */
 export function PayScreen() {
-  const { purchase } = useStore()
+  const { purchase, app, setScreen } = useStore()
+  const [tab, setTab] = useState<'pay' | 'manage'>('pay')
+  if (!app) return null
+  const icons = Object.fromEntries(app.merchants.map((m) => [m.id, m.icon]))
+  const topups = app.transactions.filter((t) => t.is_autotopup && t.kind === 'transfer_in')
   return (
-    <div className="anim-fade-up px-2 pb-4 pt-3">
-      <PageTitle sub="Choose a simulated purchase, then tap your card on the terminal.">Pay</PageTitle>
-      <PurchasePicker />
-      <div className="mt-4 md:hidden">{purchase && <Terminal />}</div>
-      <p className="mt-4 hidden items-center justify-center gap-1 rounded-2xl border border-border-muted-soft bg-surface-mono p-2 typography-body-10 text-text-body md:flex">
-        <ArrowLeftIcon size="small" color="primary" aria-hidden /> The payment terminal is on the left.
-      </p>
+    <div className="anim-fade-up min-h-full bg-background-pale pb-4">
+      <PageHeader<'pay' | 'manage'> title="Payments" active={tab} onTab={setTab}
+        tabs={[{ id: 'pay', label: 'Pay', icon: DollarIcon }, { id: 'manage', label: 'Manage', icon: ListIcon }]} />
+      {tab === 'pay' ? (
+        <div className="px-2 pt-3">
+          <h2 className="mb-1 px-1 typography-body-8 font-bold text-text-heading">Tap to pay (simulation)</h2>
+          <p className="mb-2 px-1 typography-body-10 text-text-muted">Choose a purchase, then tap your card on the terminal.</p>
+          <PurchasePicker />
+          <div className="mt-4 md:hidden">{purchase && <Terminal />}</div>
+          <p className="mt-3 hidden items-center justify-center gap-1 rounded-3xl border border-border-muted-soft bg-surface-mono p-2 typography-body-10 text-text-body md:flex">
+            <ArrowLeftIcon size="small" color="primary" aria-hidden /> The payment terminal is on the left.
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-1.5">
+            <Tile icon={TransferIcon} label="AutoTopUp settings" onClick={() => setScreen('settings')} />
+            <Tile icon={StarsIcon} label="AI analysis" onClick={() => setScreen('analysis')} />
+            <Tile icon={HistoryClockIcon} label="Transaction history" onClick={() => setScreen('accounts')} />
+            <Tile icon={CreditCardIcon} label="View digital card" onClick={() => setScreen('accounts')} />
+          </div>
+        </div>
+      ) : (
+        <div className="px-2 pt-3">
+          <h2 id="atu-activity" className="mb-1.5 px-1 typography-body-8 font-bold text-text-heading">AutoTopUp activity</h2>
+          <Card className="px-2">
+            {topups.length === 0 && <p className="py-2 typography-body-10 text-text-muted">No top-ups yet.</p>}
+            <ul aria-labelledby="atu-activity" className="divide-y divide-border-muted-soft">
+              {topups.map((t) => <TxnRow key={t.id} t={t} merchantIcon={t.merchant_id ? icons[t.merchant_id] : undefined} />)}
+            </ul>
+          </Card>
+          <h2 className="mb-1.5 mt-3 px-1 typography-body-8 font-bold text-text-heading">Notifications</h2>
+          <Card className="divide-y divide-border-muted-soft px-2.5">
+            {app.notifications.length === 0 && <p className="py-2 typography-body-10 text-text-muted">No notifications yet.</p>}
+            {app.notifications.slice(0, 10).map((n) => (
+              <div key={n.id} className="py-1.5">
+                <p className="typography-body-10 font-bold text-text-body">{n.title}</p>
+                <p className="typography-body-10 text-text-muted">{n.body}</p>
+                <p className="num text-[0.75rem] text-text-muted">{timeLabel(n.ts)}</p>
+              </div>
+            ))}
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

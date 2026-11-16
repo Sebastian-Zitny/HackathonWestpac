@@ -8,7 +8,7 @@ import { Badge } from '@westpac/ui/badge'
 import {
   CafeIcon, CarIcon, CartIcon, ErrorIcon, GlobalIcon, MedicalIcon, PendingIcon, PhoneIcon,
   RemoveCircleIcon, RestaurantIcon, ShopIcon, ShoppingBagIcon, ShoppingBasketIcon, TakeoutFoodIcon,
-  TickCircleIcon, WarningIcon,
+  TickCircleIcon, WarningIcon, HeadsetIcon, PersonIcon, SearchIcon, ArrowRightIcon,
 } from '@westpac/ui/icon'
 import type { IconProps } from '@westpac/ui/icon'
 import { cx } from '../lib/format'
@@ -111,3 +111,77 @@ export function Spinner({ className, label = 'Loading' }: { className?: string; 
   return <span role="status" aria-label={label} className={cx('inline-block size-3 animate-spin rounded-full border-2 border-current border-t-transparent', className)} />
 }
 
+
+/* ---------------- Westpac-app-style building blocks ---------------- */
+
+/** Large page title with the search / help / profile icons on the right, and optional underline tabs. */
+export function PageHeader<T extends string>({ title, tabs, active, onTab, onBack }: {
+  title: string; tabs?: { id: T; label: string; icon?: GelIcon }[]; active?: T; onTab?: (t: T) => void; onBack?: () => void
+}) {
+  return (
+    <div className="bg-surface-mono">
+      <div className="flex items-center justify-end gap-3 px-3 pt-2 text-text-body">
+        {onBack && <button onClick={onBack} className="mr-auto rounded-full p-0.5 text-text-primary focus-visible:focus-outline" aria-label="Back"><ArrowRightIcon size="small" className="rotate-180" aria-hidden /></button>}
+        <SearchIcon size="small" aria-hidden />
+        <span className="relative"><HeadsetIcon size="small" aria-hidden /><span className="absolute -right-0.5 -top-0.5 size-[7px] rounded-full bg-surface-primary" aria-hidden /></span>
+        <PersonIcon size="small" aria-hidden />
+      </div>
+      <h1 className="px-3 pb-1.5 pt-1 typography-body-6 font-bold text-text-body">{title}</h1>
+      {tabs && (
+        <div role="tablist" className="flex gap-3 border-b border-border-muted-soft px-3">
+          {tabs.map((t) => {
+            const on = t.id === active
+            return (
+              <button key={t.id} role="tab" aria-selected={on} onClick={() => onTab?.(t.id)}
+                className={cx('flex items-center gap-1 border-b-[3px] pb-1.5 pt-0.5 typography-body-9 focus-visible:focus-outline',
+                  on ? 'border-border-hero font-bold text-text-heading' : 'border-transparent text-text-muted')}>
+                {t.icon && <t.icon size="small" className={on ? 'text-text-primary' : ''} aria-hidden />}{t.label}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Navy section heading with a chevron, as used for "Notifications ›" and "Favourite accounts ›". */
+export function SectionLink({ children, onClick, id }: { children: ReactNode; onClick?: () => void; id?: string }) {
+  return (
+    <h2 id={id} className="mb-1.5 mt-4">
+      <button onClick={onClick} disabled={!onClick} className="flex items-center gap-1 typography-body-7 font-bold text-text-heading focus-visible:focus-outline disabled:cursor-default">
+        {children}{onClick && <ArrowRightIcon size="small" aria-hidden />}
+      </button>
+    </h2>
+  )
+}
+
+/** Small red payment-card thumbnail (generic card graphic, no logos). */
+export function CardThumb({ digits }: { digits?: string }) {
+  return (
+    <span className="relative inline-flex h-[28px] w-[44px] shrink-0 items-end justify-end overflow-hidden rounded-md bg-gradient-to-br from-surface-primary to-[var(--wbc-primary-700)] p-[3px] shadow-sm" aria-hidden>
+      <span className="absolute left-[5px] top-[6px] h-[6px] w-[9px] rounded-[2px] bg-[var(--wbc-dance-200)]" />
+      {digits && <span className="num text-[7px] font-bold leading-none text-text-mono">{digits}</span>}
+    </span>
+  )
+}
+
+/** Square-ish action tile used in the Payments and More grids. */
+export function Tile({ icon: I, label, onClick }: { icon: GelIcon; label: string; onClick?: () => void }) {
+  return (
+    <button onClick={onClick} className="flex min-h-[112px] flex-col items-start justify-between rounded-3xl border border-border-muted-soft bg-surface-mono p-2 text-left transition-colors hover:border-border-hero focus-visible:focus-outline">
+      <I size="small" color="hero" aria-hidden />
+      <span className="typography-body-9 text-text-body">{label}</span>
+    </button>
+  )
+}
+
+/** Featured-card corner marker (blue triangle with a star), as on promotional cards. */
+export function FeaturedCorner() {
+  return (
+    <span className="absolute left-0 top-0 h-[34px] w-[34px] overflow-hidden rounded-tl-3xl" aria-hidden>
+      <span className="absolute -left-[17px] -top-[17px] h-[34px] w-[34px] rotate-45 bg-surface-info" />
+      <svg viewBox="0 0 10 10" className="absolute left-[4px] top-[4px] size-[10px] fill-white"><path d="M5 0l1.2 3.3H10L7 5.5 8.1 9 5 6.9 1.9 9 3 5.5 0 3.3h3.8z" /></svg>
+    </span>
+  )
+}

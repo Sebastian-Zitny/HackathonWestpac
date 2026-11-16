@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react'
 import { Alert } from '@westpac/ui/alert'
 import { Badge } from '@westpac/ui/badge'
 import { FlexiCell, FlexiCellAdornment, FlexiCellHint, FlexiCellLabel } from '@westpac/ui/flexi-cell'
-import { BarChartIcon, CalendarIcon, MoneyInIcon, TransferIcon, WarningIcon } from '@westpac/ui/icon'
+import { BarChartIcon, CalendarIcon, MoneyInIcon, PieChartIcon, StarsIcon, TransferIcon, WarningIcon } from '@westpac/ui/icon'
 import { useStore } from '../store'
 import { api, type Insights } from '../lib/api'
 import { CATEGORY_LABEL, cx, dateLabel, money } from '../lib/format'
-import { Card, IconTile, PageTitle, SectionTitle, Spinner } from '../components/ui'
+import { Card, IconTile, PageHeader, SectionTitle, Spinner } from '../components/ui'
 
 /** Single-series weekly bars (GEL data-b = hero navy; current week = data-a primary). Hover/focus tooltip per bar. */
 function WeeklyBars({ data }: { data: Insights['weekly_totals'] }) {
@@ -34,18 +34,89 @@ function WeeklyBars({ data }: { data: Insights['weekly_totals'] }) {
   )
 }
 
+type Tab = 'overview' | 'insights'
+
 export function InsightsScreen() {
-  const { app } = useStore()
+  const { app, setScreen } = useStore()
   const [d, setD] = useState<Insights | null>(null)
+  const [tab, setTab] = useState<Tab>('overview')
   useEffect(() => { api.insights().then(setD).catch(() => null) }, [app?.now])
-  if (!d) return <div className="grid h-[240px] place-items-center text-text-muted"><Spinner /></div>
+  return (
+    <div className="anim-fade-up min-h-full bg-background-pale pb-4">
+      <PageHeader<Tab> title="Insights & tools" active={tab} onTab={setTab}
+        tabs={[{ id: 'overview', label: 'Overview', icon: PieChartIcon }, { id: 'insights', label: 'Insights', icon: StarsIcon }]} />
+      {!d ? <div className="grid h-[240px] place-items-center text-text-muted"><Spinner /></div>
+        : tab === 'overview' ? <Overview d={d} openDetail={() => setTab('insights')} openSettings={() => setScreen('settings')} /> : <InsightsDetail d={d} />}
+    </div>
+  )
+}
+
+function MoneyTool({ title, children, onClick }: { title: string; children: React.ReactNode; onClick?: () => void }) {
+  return (
+    <button onClick={onClick} className="flex min-h-[170px] flex-col rounded-3xl border border-border-muted-soft bg-surface-mono p-2.5 text-left hover:border-border-hero focus-visible:focus-outline">
+      <span className="typography-body-10 font-bold uppercase tracking-wide text-text-heading">{title}</span>
+      {children}
+    </button>
+  )
+}
+
+function Overview({ d, openDetail, openSettings }: { d: Insights; openDetail: () => void; openSettings: () => void }) {
+  const spent = d.spending_by_category.reduce((s, c) => s + c.total_cents, 0)
+  const income = d.finance.expected_income_14d_cents
+  const top = d.spending_by_category[0]
+  const bills = d.upcoming.filter((u) => u.kind === 'bill')
+  const max = Math.max(spent, income, 1)
+  return (
+    <div className="px-2 pt-3">
+      <div className="overflow-hidden rounded-3xl border border-border-muted-soft bg-surface-mono">
+        <div className="relative grid h-[150px] place-items-center overflow-hidden"
+          style={{ background: 'linear-gradient(135deg, var(--wbc-holler-50) 0%, var(--wbc-holler-100) 60%, var(--wbc-pop-100) 100%)' }}>
+          <span className="absolute -right-6 -top-6 size-[140px] rounded-full bg-[var(--wbc-holler-200)] opacity-60" aria-hidden />
+          <span className="absolute -bottom-8 left-6 size-[110px] rounded-full bg-[var(--wbc-pop-200)] opacity-60" aria-hidden />
+          <span className="relative grid size-12 place-items-center rounded-full bg-surface-holler text-text-mono shadow-lg"><TransferIcon size="large" aria-hidden /></span>
+        </div>
+        <div className="p-3">
+          <p className="typography-body-8 font-bold text-text-heading">AutoTopUp AI</p>
+          <p className="mt-0.5 typography-body-9 text-text-muted">Smarter top-ups that learn your spending, and always ask first.</p>
+          <button onClick={openSettings} className="mt-1 typography-body-9 text-text-primary hover:underline focus-visible:focus-outline">Get started</button>
+        </div>
+      </div>
+
+      <h2 className="mb-1.5 mt-4 px-0.5 typography-body-7 font-bold text-text-heading">Money tools</h2>
+      <div className="grid grid-cols-2 gap-1.5">
+        <MoneyTool title="Cash flow" onClick={openDetail}>
+          <span className="num mt-1 typography-body-7 font-bold text-text-body">{money(spent)}</span>
+          <span className="typography-body-10 text-text-muted">spent, last 30 days</span>
+          <span className="mt-auto pt-1 typography-body-10 text-text-muted">Expenses</span>
+          <span className="h-1 rounded-full bg-surface-muted-pale"><span className="block h-1 rounded-full bg-surface-holler" style={{ width: `${(spent / max) * 100}%` }} /></span>
+          <span className="mt-0.5 typography-body-10 text-text-muted">Income next 14 days</span>
+          <span className="h-1 rounded-full bg-surface-muted-pale"><span className="block h-1 rounded-full bg-surface-hero" style={{ width: `${(income / max) * 100}%` }} /></span>
+        </MoneyTool>
+        <MoneyTool title="Categories" onClick={openDetail}>
+          <span className="num mt-1 typography-body-7 font-bold text-text-body">{top ? money(top.total_cents) : '$0.00'}</span>
+          <span className="typography-body-10 text-text-muted">{top ? `top category: ${CATEGORY_LABEL[top.category] ?? top.category}` : 'No spending yet'}</span>
+        </MoneyTool>
+        <MoneyTool title="Bills calendar" onClick={openDetail}>
+          <CalendarIcon size="large" color="hero" className="mt-1.5" aria-hidden />
+          <span className="mt-auto typography-body-10 text-text-muted">{bills.length} bills in the next 14 days</span>
+        </MoneyTool>
+        <MoneyTool title="AutoTopUp" onClick={openSettings}>
+          <span className="num mt-1 typography-body-7 font-bold text-text-body">{d.autotopups_30d.count}</span>
+          <span className="typography-body-10 text-text-muted">top-ups in 30 days · {money(d.autotopups_30d.total_cents)}</span>
+        </MoneyTool>
+      </div>
+    </div>
+  )
+}
+
+function InsightsDetail({ d }: { d: Insights }) {
   const catMax = Math.max(...d.spending_by_category.map((c) => c.total_cents), 1)
   const catTotal = d.spending_by_category.reduce((s, c) => s + c.total_cents, 0)
   const f = d.finance
   const ev = d.model.evaluation_on_synthetic_holdout
   return (
-    <div className="anim-fade-up px-2 pb-4 pt-3">
-      <PageTitle sub={<span className="num">Last 30 days · {money(catTotal)} card spending</span>}>Spending insights</PageTitle>
+    <div className="px-2 pt-2">
+      <p className="num px-0.5 typography-body-10 text-text-muted">Last 30 days · {money(catTotal)} card spending</p>
 
       <SectionTitle>Spending by category</SectionTitle>
       <Card className="space-y-2 p-2.5">

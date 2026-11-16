@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { api, ApiError, type AppState, type IntentView, type Offer } from './lib/api'
 import { money } from './lib/format'
 
-export type Screen = 'home' | 'pay' | 'insights' | 'settings' | 'analysis' | 'approve' | 'result'
+export type Screen = 'home' | 'accounts' | 'pay' | 'insights' | 'more' | 'settings' | 'analysis' | 'approve' | 'result'
 export type Phase =
   | 'idle' | 'processing' | 'assessing' | 'awaiting' | 'transferring' | 'retap'
   | 'approved' | 'blocked' | 'topup_declined' | 'duplicate'

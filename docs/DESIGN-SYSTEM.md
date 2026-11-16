@@ -8,6 +8,20 @@ GEL tokens and components are used directly. The product itself stays original a
 - It has its own "AutoTopUp AI" mark. No Westpac logo or wordmark is used.
 - A Westpac-style header (white bar, red brand rule, navy type) carries a "Hackathon prototype · simulated data" tag.
 
+## App layout
+
+The phone app mirrors the structure of the Westpac mobile banking app, built only from GEL tokens and components:
+
+- **Bottom navigation:** five tabs (Home, Accounts, Payments, Insights, More). The active tab is `text-primary` red.
+- **Home:**
+  - A hero gradient (hero navy → holler purple → primary red) with the greeting, Contact us and a search bar.
+  - A featured card with a corner marker.
+  - The "Notifications ›" and "Favourite accounts ›" sections.
+  - A Net worth card.
+- **Other tabs:** a large page title with search, help and profile icons, plus underline tabs where relevant (Accounts: Overview/Cards, Payments: Pay/Manage, Insights & tools: Overview/Insights).
+- **Patterns:** account cards with a card row, 2-column action tiles, and red-outline secondary buttons (`Button look="primary" soft`).
+- **Not used:** no Westpac logo, photography or illustrations. The product mark and the decorative shapes are our own.
+
 ## Packages and installation (verified 16 Nov 2026)
 
 | Package | Version | Notes |

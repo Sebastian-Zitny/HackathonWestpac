@@ -12,7 +12,7 @@ import { FingerprintIcon, KeyIcon, SecurityIcon, StarsIcon } from '@westpac/ui/i
 import { useStore } from '../store'
 import { api, type Settings } from '../lib/api'
 import { centsToDollars, dateLabel, dollarsToCents, money } from '../lib/format'
-import { Card, IconTile, MerchantIcon, PageTitle, SectionTitle } from '../components/ui'
+import { Card, IconTile, MerchantIcon, PageHeader, SectionTitle } from '../components/ui'
 
 function Toggle({ label, hint, checked, onChange }: { label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -36,7 +36,7 @@ function MoneyField({ label, cents, onChange, hint }: { label: string; cents: nu
 }
 
 export function SettingsScreen() {
-  const { app, refresh } = useStore()
+  const { app, refresh, setScreen } = useStore()
   const [s, setS] = useState<Settings | null>(app?.settings ?? null)
   const [saved, setSaved] = useState(false)
   const [err, setErr] = useState<string | null>(null)
@@ -57,8 +57,10 @@ export function SettingsScreen() {
   }
 
   return (
-    <div className="anim-fade-up px-2 pb-14 pt-3">
-      <PageTitle sub="You stay in control. Every setting here changes how top-ups are decided.">AutoTopUp settings</PageTitle>
+    <div className="anim-fade-up min-h-full bg-background-pale pb-14">
+      <PageHeader title="AutoTopUp" onBack={() => setScreen('more')} />
+      <div className="px-2 pt-2">
+      <p className="mb-2 typography-body-10 text-text-muted">You stay in control. Every setting here changes how top-ups are decided.</p>
       <Alert look="info" className="mb-0 rounded-2xl">AutoTopUp only moves your own money between your accounts. It never creates credit, a loan or an overdraft.</Alert>
 
       <Card className="mt-2 px-2.5 py-1">
@@ -153,6 +155,7 @@ export function SettingsScreen() {
             {dirty ? 'Save settings' : saved ? '✓ Settings saved' : 'No changes to save'}
           </Button>
         </div>
+      </div>
       </div>
     </div>
   )

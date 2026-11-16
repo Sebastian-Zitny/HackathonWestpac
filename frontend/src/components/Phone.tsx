@@ -1,6 +1,6 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Button } from '@westpac/ui/button'
-import { BarChartIcon, CloseIcon, HouseIcon, PaypassIcon, SettingsIcon, TransferIcon } from '@westpac/ui/icon'
+import { AccountIcon, CloseIcon, DollarIcon, HouseIcon, LightBulbIcon, TilesIcon, TransferIcon } from '@westpac/ui/icon'
 import { useStore, type Screen } from '../store'
 import { clock, cx, timeLabel } from '../lib/format'
 
@@ -66,33 +66,39 @@ function Banner() {
 
 const NAV: { id: Screen; label: string; icon: typeof HouseIcon }[] = [
   { id: 'home', label: 'Home', icon: HouseIcon },
-  { id: 'pay', label: 'Pay', icon: PaypassIcon },
-  { id: 'insights', label: 'Insights', icon: BarChartIcon },
-  { id: 'settings', label: 'AutoTopUp', icon: SettingsIcon },
+  { id: 'accounts', label: 'Accounts', icon: AccountIcon },
+  { id: 'pay', label: 'Payments', icon: DollarIcon },
+  { id: 'insights', label: 'Insights', icon: LightBulbIcon },
+  { id: 'more', label: 'More', icon: TilesIcon },
 ]
 
 export function Phone({ children }: { children: ReactNode }) {
   const { app, screen, setScreen } = useStore()
-  const active = NAV.some((n) => n.id === screen) ? screen : ['analysis', 'approve', 'result'].includes(screen) ? 'pay' : 'home'
+  const active = NAV.some((n) => n.id === screen) ? screen : ['analysis', 'approve', 'result'].includes(screen) ? 'pay' : screen === 'settings' ? 'more' : 'home'
+  const mainRef = useRef<HTMLElement>(null)
+  const [scrolled, setScrolled] = useState(false)
+  useEffect(() => { mainRef.current?.scrollTo(0, 0); setScrolled(false) }, [screen])
+  const overHero = screen === 'home' && !scrolled
   return (
-    <div className="relative mx-auto h-[calc(100dvh-64px)] w-full bg-background-pale sm:h-[820px] sm:w-[400px] sm:rounded-[46px] sm:border-[10px] sm:border-surface-muted-vivid sm:shadow-[0_30px_60px_-15px_rgba(31,28,79,.4)]">
+    <div className="relative mx-auto h-[calc(100dvh-54px)] w-full bg-background-pale sm:h-[820px] sm:w-[400px] sm:rounded-[46px] sm:border-[10px] sm:border-surface-muted-vivid sm:shadow-[0_30px_60px_-15px_rgba(31,28,79,.4)]">
       <div className="relative flex h-full flex-col overflow-hidden sm:rounded-[36px]">
-        <div className="relative z-30 flex h-6 shrink-0 items-center justify-between bg-surface-mono px-4 typography-body-10 font-bold text-text-body">
+        <div className={cx('z-30 flex h-6 shrink-0 items-center justify-between px-4 typography-body-10 font-bold',
+          screen === 'home' ? 'absolute inset-x-0 top-0' : 'relative',
+          overHero ? 'bg-[var(--wbc-hero-700)] text-text-mono' : 'bg-surface-mono text-text-body shadow-[0_1px_0_var(--border-muted-soft)]')}>
           <span className="num">{app ? timeLabel(app.now) : '--:--'}</span>
-          <span className="absolute left-1/2 top-1 hidden h-4 w-[96px] -translate-x-1/2 rounded-full bg-surface-muted-vivid sm:block" aria-hidden />
+          <span className="absolute left-1/2 top-1 hidden h-4 w-[96px] -translate-x-1/2 rounded-full bg-[var(--wbc-muted-950)] sm:block" aria-hidden />
           <StatusGlyphs />
         </div>
         <Banner />
-        <main className="scrollbar-thin relative flex-1 overflow-y-auto" aria-label="AutoTopUp AI mobile banking (simulated)">{children}</main>
-        <nav aria-label="Main" className="z-20 grid shrink-0 grid-cols-4 border-t border-border-muted-soft bg-surface-mono pb-[env(safe-area-inset-bottom)]">
+        <main ref={mainRef} onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 120)} className="scrollbar-thin relative flex-1 overflow-y-auto" aria-label="AutoTopUp AI mobile banking (simulated)">{children}</main>
+        <nav aria-label="Main" className="z-20 grid shrink-0 grid-cols-5 border-t border-border-muted-soft bg-surface-mono pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_8px_rgba(0,0,0,.04)]">
           {NAV.map((n) => {
             const on = active === n.id
             return (
               <button key={n.id} onClick={() => setScreen(n.id)} aria-current={on ? 'page' : undefined}
-                className={cx('relative flex min-h-8 flex-col items-center justify-center gap-0.5 text-[0.75rem] focus-visible:focus-outline focus-visible:-outline-offset-4',
-                  on ? 'font-bold text-text-primary' : 'text-text-muted hover:text-text-hero')}>
-                {on && <span className="absolute inset-x-3 top-0 h-[3px] rounded-b-full bg-surface-primary" aria-hidden />}
-                <n.icon size="small" look={on ? 'filled' : 'outlined'} aria-hidden />
+                className={cx('relative flex min-h-9 flex-col items-center justify-center gap-0.5 text-[0.8125rem] focus-visible:focus-outline focus-visible:-outline-offset-4',
+                  on ? 'font-bold text-text-primary' : 'text-text-body hover:text-text-hero')}>
+                <n.icon size="medium" look={on ? 'filled' : 'outlined'} aria-hidden />
                 {n.label}
               </button>
             )
