@@ -120,12 +120,15 @@ export function TrustGauge({ score, compact = false }: { score: number; compact?
         <div className="absolute -top-[14px] flex -translate-x-1/2 flex-col items-center" style={{ left: `${pos}%` }}>
           <span className="h-0 w-0 border-x-[6px] border-t-[8px] border-x-transparent border-t-[var(--text-heading)]" />
         </div>
-        <div className="flex h-1.5 overflow-hidden rounded-full">
-          {ZONES.map((z) => (
-            <span key={z.band} style={{ width: `${z.to - z.from + (z.from ? 0 : 1)}%` }}
-              className={cx('h-full', z.band === band ? FILL[z.band].on : FILL[z.band].off,
-                z.band !== 'danger' && 'border-l-2 border-surface-mono')} />
-          ))}
+        {/* faint zones as the track, then one solid fill from 0 up to the score */}
+        <div className={cx('relative overflow-hidden rounded-full', compact ? 'h-2' : 'h-3')}>
+          <div className="absolute inset-0 flex">
+            {ZONES.map((z) => (
+              <span key={z.band} style={{ width: `${z.to - z.from + (z.from ? 0 : 1)}%` }}
+                className={cx('h-full', FILL[z.band].off, z.band !== 'danger' && 'border-l-2 border-surface-mono')} />
+            ))}
+          </div>
+          <span className={cx('absolute inset-y-0 left-0 rounded-full transition-[width] duration-700', FILL[band].on)} style={{ width: `${Math.max(pos, 3)}%` }} />
         </div>
       </div>
       <div className="mt-0.5 flex justify-between text-[0.75rem] text-text-muted" aria-hidden>
@@ -137,7 +140,7 @@ export function TrustGauge({ score, compact = false }: { score: number; compact?
             <li key={z.band} className={cx('flex items-center gap-1 rounded-xl px-1 py-0.5', z.band === band ? 'bg-surface-muted-faint font-bold text-text-heading' : 'text-text-muted')}>
               <span className={cx('size-1 shrink-0 rounded-full', FILL[z.band].on)} />
               <span className="w-[124px] shrink-0 whitespace-nowrap">{z.name} <span className="num">{z.from}–{z.to}</span></span>
-              <span className="flex-1">{z.action}</span>
+              <span className="flex-1 whitespace-nowrap">{z.action}</span>
               {z.band === band && <span className="shrink-0 text-[0.75rem] font-normal text-text-muted">this purchase</span>}
             </li>
           ))}

@@ -148,15 +148,17 @@ function Biometric({ onDone, busy }: { onDone: () => void; busy: boolean }) {
   const go = () => { setScanning(true); setTimeout(() => { setScanning(false); onDone() }, 1300) }
   return (
     <div className="flex flex-col items-center py-1">
-      <div className={cx('relative grid size-14 place-items-center overflow-hidden rounded-4xl border transition-colors',
-        scanning ? 'border-border-primary bg-surface-primary-faint text-text-primary' : 'border-border-muted-soft bg-surface-muted-faint text-text-hero')}>
+      {/* The pad itself is tappable too: it's the obvious thing to touch on a phone. */}
+      <button type="button" onClick={go} disabled={scanning || busy} aria-label="Scan fingerprint"
+        className={cx('relative grid size-14 place-items-center overflow-hidden rounded-4xl border transition-colors focus-visible:focus-outline enabled:cursor-pointer enabled:hover:border-border-primary',
+          scanning ? 'border-border-primary bg-surface-primary-faint text-text-primary' : 'border-border-muted-soft bg-surface-muted-faint text-text-hero')}>
         <FingerprintIcon size="xlarge" aria-hidden />
         {scanning && <span className="anim-scan absolute inset-x-1 h-[2px] bg-surface-primary" aria-hidden />}
-      </div>
+      </button>
       <Button look="hero" size="xlarge" block className="mt-3" disabled={scanning || busy} onClick={go} iconBefore={FingerprintIcon}>
         {scanning ? 'Scanning…' : 'Confirm with biometrics'}
       </Button>
-      <p className="mt-0.5 text-[0.75rem] text-text-muted">Simulated biometric check</p>
+      <p className="mt-0.5 text-[0.75rem] text-text-muted">Simulated biometric check: tap the fingerprint or the button</p>
     </div>
   )
 }

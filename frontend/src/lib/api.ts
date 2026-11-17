@@ -91,6 +91,15 @@ function demoSession(): string {
 }
 let sessionFallback: string | undefined
 
+/** The customer's own settings (limits, card switch) kept in this browser so a server restart doesn't undo them. */
+const savedSettings = {
+  get(): Settings | null {
+    try { const v = localStorage.getItem('autotopup-settings'); return v ? (JSON.parse(v) as Settings) : null } catch { return null }
+  },
+  set(s: Settings) { try { localStorage.setItem('autotopup-settings', JSON.stringify(s)) } catch { /* storage unavailable */ } },
+  clear() { try { localStorage.removeItem('autotopup-settings') } catch { /* storage unavailable */ } },
+}
+
 async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(`/api${path}`, {
     method,
@@ -108,8 +117,17 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
 
 export const api = {
   state: () => req<AppState>('GET', '/state'),
-  saveSettings: (s: Settings) => req<Settings>('PUT', '/settings', s),
-  reset: (scenario_id: number, keep_settings: boolean) => req<{ state: AppState }>('POST', '/demo/reset', { scenario_id, keep_settings }),
+  saveSettings: async (s: Settings) => { const r = await req<Settings>('PUT', '/settings', s); savedSettings.set(r); return r },
+  reset: (scenario_id: number, keep_settings: boolean) => {
+    if (!keep_settings) savedSettings.clear()
+    return req<{ state: AppState }>('POST', '/demo/reset', { scenario_id, keep_settings })
+  },
+  /** If the server lost this browser's settings (e.g. the free host restarted), put back the last ones saved here. */
+  restoreSettings: async (server: Settings): Promise<boolean> => {
+    const mine = savedSettings.get()
+    if (!mine || JSON.stringify(mine) === JSON.stringify(server)) return false
+    try { await req<Settings>('PUT', '/settings', mine); return true } catch { savedSettings.clear(); return false }
+  },
   clock: (time: string) => req<{ now: string }>('POST', '/demo/clock', { time }),
   flags: (f: { security_hold?: boolean; app_session_authenticated?: boolean }) => req('POST', '/demo/flags', f),
   createPayment: (merchant_id: string, amount_cents: number) => req<IntentView>('POST', '/payments', { merchant_id, amount_cents }),

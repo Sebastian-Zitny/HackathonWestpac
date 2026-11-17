@@ -62,7 +62,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
-      const s = await api.state()
+      let s = await api.state()
+      if (await api.restoreSettings(s.settings)) s = await api.state()
       setApp(s)
       setBackendDown(false)
     } catch {
