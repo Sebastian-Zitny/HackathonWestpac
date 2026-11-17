@@ -10,7 +10,7 @@ import { Select } from '@westpac/ui/select'
 import { Switch } from '@westpac/ui/switch'
 import { FingerprintIcon, KeyIcon, SecurityIcon, StarsIcon } from '@westpac/ui/icon'
 import { useStore } from '../store'
-import { api, type Settings } from '../lib/api'
+import { api, ApiError, type Settings } from '../lib/api'
 import { centsToDollars, dateLabel, dollarsToCents, money } from '../lib/format'
 import { Card, IconTile, MerchantIcon, PageHeader, SectionTitle } from '../components/ui'
 
@@ -23,14 +23,21 @@ function Toggle({ label, hint, checked, onChange }: { label: string; hint?: stri
   )
 }
 
-function MoneyField({ label, cents, onChange, hint }: { label: string; cents: number; onChange: (c: number) => void; hint?: string }) {
-  const [v, setV] = useState(centsToDollars(cents))
-  useEffect(() => setV(centsToDollars(cents)), [cents])
+/** The message for one field, shown under it so people can see exactly which value is out of range. */
+function FieldError({ id, msg }: { id: string; msg?: string }) {
+  return msg ? <p id={id} role="alert" className="mt-0.5 typography-body-10 font-bold text-text-danger">{msg}</p> : null
+}
+
+function MoneyField({ label, cents, onChange, hint, error, id }: { label: string; cents: number; onChange: (c: number) => void; hint?: string; error?: string; id: string }) {
+  const [v, setV] = useState(Number.isFinite(cents) ? centsToDollars(cents) : '')
+  useEffect(() => { if (Number.isFinite(cents)) setV(centsToDollars(cents)) }, [cents])
   return (
     <div className="py-1">
       <InputGroup label={label} hint={hint} size="medium" before="$" width="full">
-        <Input inputMode="decimal" value={v} onChange={(e) => setV(e.target.value)} onBlur={() => onChange(dollarsToCents(v))} className="num" />
+        <Input inputMode="decimal" value={v} onChange={(e) => setV(e.target.value)} onBlur={() => onChange(dollarsToCents(v))}
+          invalid={!!error} aria-invalid={!!error} aria-describedby={error ? `${id}-err` : undefined} className="num" />
       </InputGroup>
+      <FieldError id={`${id}-err`} msg={error} />
     </div>
   )
 }
@@ -40,20 +47,31 @@ export function SettingsScreen() {
   const [s, setS] = useState<Settings | null>(app?.settings ?? null)
   const [saved, setSaved] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [fieldErrs, setFieldErrs] = useState<Record<string, string>>({})
   useEffect(() => { if (app) setS(app.settings) }, [app?.settings]) // eslint-disable-line react-hooks/exhaustive-deps
   if (!app || !s) return null
   const dirty = JSON.stringify(s) !== JSON.stringify(app.settings)
-  const up = (p: Partial<Settings>) => { setS({ ...s, ...p }); setSaved(false) }
+  const up = (p: Partial<Settings>) => {
+    setS({ ...s, ...p }); setSaved(false)
+    setFieldErrs((fe) => Object.fromEntries(Object.entries(fe).filter(([k]) => !(k in p))))
+  }
   const savingsAccts = app.accounts.filter((a) => a.type === 'savings')
   const everydayAccts = app.accounts.filter((a) => a.type === 'everyday')
 
   const save = async () => {
     setErr(null)
+    setFieldErrs({})
     try {
       await api.saveSettings(s)
       await refresh()
       setSaved(true)
-    } catch (e) { setErr(e instanceof Error ? e.message : 'Could not save') }
+    } catch (e) {
+      const fields = e instanceof ApiError && Array.isArray(e.body.fields) ? (e.body.fields as { field: string; label: string; message: string }[]) : []
+      setFieldErrs(Object.fromEntries(fields.map((f) => [f.field, f.message])))
+      setErr(fields.length === 1 ? `Please fix ${fields[0].label}.`
+        : fields.length ? `Please fix the ${fields.length} highlighted fields: ${fields.map((f) => f.label).join(', ')}.`
+        : e instanceof Error ? e.message : 'Could not save')
+    }
   }
 
   return (
@@ -86,13 +104,16 @@ export function SettingsScreen() {
 
       <SectionTitle>Limits</SectionTitle>
       <Card className="p-2.5">
-        <MoneyField label="Maximum per transfer" cents={s.max_per_transfer_cents} onChange={(c) => up({ max_per_transfer_cents: c })} />
-        <MoneyField label="Maximum total per day" cents={s.max_daily_total_cents} onChange={(c) => up({ max_daily_total_cents: c })} />
+        <MoneyField label="Maximum per transfer" cents={s.max_per_transfer_cents} onChange={(c) => up({ max_per_transfer_cents: c })} id="max-transfer" error={fieldErrs.max_per_transfer_cents} />
+        <MoneyField label="Maximum total per day" cents={s.max_daily_total_cents} onChange={(c) => up({ max_daily_total_cents: c })} id="max-daily" error={fieldErrs.max_daily_total_cents} />
         <div className="py-1">
           <label htmlFor="max-count" className="mb-0.5 block typography-body-10 font-bold text-text-body">Maximum AutoTopUps per day</label>
-          <Input id="max-count" type="number" min={1} max={20} size="medium" width="full" value={s.max_daily_count} onChange={(e) => up({ max_daily_count: Number(e.target.value) })} className="num" />
+          <Input id="max-count" type="number" min={1} max={20} size="medium" width="full" value={Number.isFinite(s.max_daily_count) ? s.max_daily_count : ''}
+            onChange={(e) => up({ max_daily_count: e.target.value === '' ? NaN : Number(e.target.value) })}
+            invalid={!!fieldErrs.max_daily_count} aria-invalid={!!fieldErrs.max_daily_count} aria-describedby={fieldErrs.max_daily_count ? 'max-count-err' : undefined} className="num" />
+          <FieldError id="max-count-err" msg={fieldErrs.max_daily_count} />
         </div>
-        <MoneyField label="Minimum savings balance to keep" hint="Transfers never take savings below this" cents={s.min_savings_reserve_cents} onChange={(c) => up({ min_savings_reserve_cents: c })} />
+        <MoneyField label="Minimum savings balance to keep" hint="Transfers never take savings below this" cents={s.min_savings_reserve_cents} onChange={(c) => up({ min_savings_reserve_cents: c })} id="min-reserve" error={fieldErrs.min_savings_reserve_cents} />
       </Card>
 
       <SectionTitle>Approval</SectionTitle>
@@ -102,11 +123,15 @@ export function SettingsScreen() {
         <div className="grid grid-cols-2 gap-2 pb-2">
           <div>
             <label htmlFor="quick-from" className="mb-0.5 block typography-body-10 font-bold text-text-body">One-tap from</label>
-            <Input id="quick-from" type="time" size="medium" width="full" value={s.quick_hours_start} onChange={(e) => up({ quick_hours_start: e.target.value })} className="num" />
+            <Input id="quick-from" type="time" size="medium" width="full" value={s.quick_hours_start} onChange={(e) => up({ quick_hours_start: e.target.value })}
+              invalid={!!fieldErrs.quick_hours_start} aria-invalid={!!fieldErrs.quick_hours_start} className="num" />
+            <FieldError id="quick-from-err" msg={fieldErrs.quick_hours_start} />
           </div>
           <div>
             <label htmlFor="quick-to" className="mb-0.5 block typography-body-10 font-bold text-text-body">Until</label>
-            <Input id="quick-to" type="time" size="medium" width="full" value={s.quick_hours_end} onChange={(e) => up({ quick_hours_end: e.target.value })} className="num" />
+            <Input id="quick-to" type="time" size="medium" width="full" value={s.quick_hours_end} onChange={(e) => up({ quick_hours_end: e.target.value })}
+              invalid={!!fieldErrs.quick_hours_end} aria-invalid={!!fieldErrs.quick_hours_end} className="num" />
+            <FieldError id="quick-to-err" msg={fieldErrs.quick_hours_end} />
           </div>
         </div>
         <p className="-mt-1 pb-2 text-[0.75rem] text-text-muted">Outside these hours every top-up needs biometrics or your PIN.</p>

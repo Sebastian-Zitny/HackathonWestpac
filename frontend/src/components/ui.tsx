@@ -123,7 +123,7 @@ export function PageHeader<T extends string>({ title, tabs, active, onTab, onBac
       <div className="flex items-center justify-end gap-3 px-3 pt-2 text-text-body">
         {onBack && <button onClick={onBack} className="mr-auto rounded-full p-0.5 text-text-primary focus-visible:focus-outline" aria-label="Back"><ArrowRightIcon size="small" className="rotate-180" aria-hidden /></button>}
         <SearchIcon size="small" aria-hidden />
-        <span className="relative"><HeadsetIcon size="small" aria-hidden /><span className="absolute -right-0.5 -top-0.5 size-[7px] rounded-full bg-surface-primary" aria-hidden /></span>
+        <HeadsetIcon size="small" aria-hidden />
         <PersonIcon size="small" aria-hidden />
       </div>
       <h1 className="px-3 pb-1.5 pt-1 typography-body-6 font-bold text-text-body">{title}</h1>

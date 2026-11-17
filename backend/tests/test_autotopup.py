@@ -427,3 +427,20 @@ def test_each_browser_session_is_isolated(client):
     assert client.get("/api/settings", headers=b).json()["enabled"] is False
     # Without a session header the shared database is used (unchanged behaviour)
     assert client.get("/api/settings").json()["enabled"] is True
+
+
+def test_out_of_range_inputs_name_the_field(client):
+    """Errors say which input is wrong, the allowed limit and what was entered, in dollars."""
+    s = client.get("/api/settings").json()
+    s.update(max_per_transfer_cents=900_000, max_daily_count=0)
+    r = client.put("/api/settings", json=s)
+    assert r.status_code == 422
+    body = r.json()
+    msgs = {f["field"]: f["message"] for f in body["fields"]}
+    assert msgs["max_per_transfer_cents"] == "Maximum per transfer can't be more than $5,000.00. You entered $9,000.00."
+    assert msgs["max_daily_count"] == "Maximum AutoTopUps per day must be at least 1. You entered 0."
+    assert "Input should" not in body["message"]
+    r = client.post("/api/payments", json={"merchant_id": "greenleaf-rochedale", "amount_cents": 0})
+    assert r.json()["fields"][0]["message"] == "Purchase amount must be more than $0.00. You entered $0.00."
+    r = client.post("/api/demo/clock", json={"time": "25:99"})
+    assert r.json()["message"] == 'Simulated time must be a time like 09:30. You entered "25:99".'

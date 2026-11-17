@@ -17,7 +17,19 @@ export function PurchasePicker() {
   const [mid, setMid] = useState('greenleaf-rochedale')
   const [amt, setAmt] = useState('25.00')
   const [time, setTime] = useState('')
+  const [amtErr, setAmtErr] = useState<string | null>(null)
+  const [timeErr, setTimeErr] = useState<string | null>(null)
   if (!app) return null
+  const MAX_PURCHASE_CENTS = 2_000_000
+  const usePurchase = () => {
+    const c = dollarsToCents(amt)
+    const shown = amt.trim() === '' ? 'nothing' : Number.isFinite(c) ? money(c) : `"${amt}"`
+    if (!Number.isFinite(c)) return setAmtErr(`Purchase amount must be a dollar amount like 25.00. You entered ${shown}.`)
+    if (c <= 0) return setAmtErr(`Purchase amount must be more than $0.00. You entered ${shown}.`)
+    if (c > MAX_PURCHASE_CENTS) return setAmtErr(`Purchase amount can't be more than ${money(MAX_PURCHASE_CENTS)}. You entered ${shown}.`)
+    setAmtErr(null)
+    setPurchase({ merchant_id: mid, amount_cents: c, item: 'Custom purchase' })
+  }
   const toggle = async (f: { security_hold?: boolean; app_session_authenticated?: boolean }) => { await api.flags(f); await refresh() }
   const sel = purchase?.scenarioId
   return (
@@ -59,12 +71,11 @@ export function PurchasePicker() {
             </Select>
           </div>
           <InputGroup label="Amount" size="medium" before="$">
-            <Input inputMode="decimal" value={amt} onChange={(e) => setAmt(e.target.value)} />
+            <Input inputMode="decimal" value={amt} onChange={(e) => { setAmt(e.target.value); setAmtErr(null) }}
+              invalid={!!amtErr} aria-invalid={!!amtErr} aria-describedby={amtErr ? 'custom-amount-err' : undefined} />
           </InputGroup>
-          <Button look="hero" size="medium" block onClick={() => {
-            const c = dollarsToCents(amt)
-            if (c > 0) setPurchase({ merchant_id: mid, amount_cents: c, item: 'Custom purchase' })
-          }}>Use this purchase</Button>
+          {amtErr && <p id="custom-amount-err" role="alert" className="typography-body-10 font-bold text-text-danger">{amtErr}</p>}
+          <Button look="hero" size="medium" block onClick={usePurchase}>Use this purchase</Button>
           <p className="text-[0.75rem] text-text-muted">Uses current balances. Settings, limits and the demo clock all apply.</p>
 
           <div className="space-y-1 border-t border-border-muted-soft pt-2">
@@ -74,12 +85,17 @@ export function PurchasePicker() {
             </p>
             <Switch block size="small" label="Security / fraud hold" isSelected={app.security_hold} onChange={(v) => toggle({ security_hold: v })} className="mb-0 typography-body-10" />
             <Switch block size="small" label="App session signed in" isSelected={app.app_session_authenticated} onChange={(v) => toggle({ app_session_authenticated: v })} className="mb-0 typography-body-10" />
-            <form className="flex items-center gap-1" onSubmit={async (e) => { e.preventDefault(); if (time) { await api.clock(time); await refresh() } }}>
+            <form className="flex items-center gap-1" onSubmit={async (e) => {
+              e.preventDefault()
+              if (!time) return setTimeErr('Simulated time: choose a time first, like 09:30.')
+              try { await api.clock(time); setTimeErr(null); await refresh() } catch (x) { setTimeErr(x instanceof Error ? x.message : 'Could not set the time') }
+            }}>
               <ClockIcon size="small" color="hero" aria-hidden />
               <span className="typography-body-10 text-text-body">Sim time <b className="num">{timeLabel(app.now)}</b></span>
               <Input type="time" size="small" value={time} onChange={(e) => setTime(e.target.value)} aria-label="Set simulated time" className="num ml-auto w-[112px]" />
               <Button type="submit" look="faint" soft size="small">Set</Button>
             </form>
+            {timeErr && <p role="alert" className="typography-body-10 font-bold text-text-danger">{timeErr}</p>}
             <Button look="faint" soft size="medium" block iconBefore={RefreshIcon} onClick={resetAll}>Reset everything</Button>
           </div>
         </div>

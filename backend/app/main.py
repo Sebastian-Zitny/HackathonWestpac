@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Literal, Optional
 
 from fastapi import Depends, FastAPI, Header, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
@@ -50,7 +51,7 @@ class Settings(BaseModel):
     @classmethod
     def distinct(cls, v, info):
         if v == info.data.get("source_account_id"):
-            raise ValueError("source and destination accounts must differ")
+            raise ValueError("Transfer from and Top up must be different accounts.")
         return v
 
 
@@ -84,6 +85,65 @@ class ClockIn(BaseModel):
 class DemoFlags(BaseModel):
     security_hold: Optional[bool] = None
     app_session_authenticated: Optional[bool] = None
+
+
+# Plain-English names for every field a person can type into, used in validation messages.
+FIELD_LABELS = {
+    "max_per_transfer_cents": "Maximum per transfer",
+    "max_daily_total_cents": "Maximum total per day",
+    "max_daily_count": "Maximum AutoTopUps per day",
+    "min_savings_reserve_cents": "Minimum savings balance to keep",
+    "quick_hours_start": "One-tap from",
+    "quick_hours_end": "One-tap until",
+    "source_account_id": "Transfer from",
+    "destination_account_id": "Top up",
+    "preferred_auth": "Preferred authentication",
+    "amount_cents": "Purchase amount",
+    "merchant_id": "Merchant",
+    "time": "Simulated time",
+    "date": "Date",
+    "pin": "PIN",
+    "scenario_id": "Scenario",
+}
+
+
+def _fmt(field: str, v) -> str:
+    if field.endswith("_cents") and isinstance(v, (int, float)) and not isinstance(v, bool):
+        return f"{'-' if v < 0 else ''}${abs(v) / 100:,.2f}"
+    return f'"{v}"' if isinstance(v, str) else str(v)
+
+
+def describe_validation_error(e: dict) -> tuple[str, str, str]:
+    """Turn one pydantic error into (field, label, message) naming the exact input that is out of range."""
+    field = next((str(x) for x in reversed(e.get("loc", ())) if isinstance(x, str) and x != "body"), "input")
+    label = FIELD_LABELS.get(field, field.replace("_", " ").capitalize())
+    ctx, kind, given = e.get("ctx") or {}, e.get("type", ""), e.get("input")
+    you = f" You entered {_fmt(field, given)}." if given is not None and not isinstance(given, (dict, list)) else ""
+    if kind == "greater_than_equal":
+        msg = f"{label} must be at least {_fmt(field, ctx.get('ge'))}.{you}"
+    elif kind == "greater_than":
+        msg = f"{label} must be more than {_fmt(field, ctx.get('gt'))}.{you}"
+    elif kind == "less_than_equal":
+        msg = f"{label} can't be more than {_fmt(field, ctx.get('le'))}.{you}"
+    elif kind == "less_than":
+        msg = f"{label} must be less than {_fmt(field, ctx.get('lt'))}.{you}"
+    elif kind == "string_pattern_mismatch":
+        example = "a date like 2026-11-17" if field == "date" else "a time like 09:30"
+        msg = f"{label} must be {example}.{you}"
+    elif kind == "missing":
+        msg = f"{label} is required."
+    elif kind in ("int_parsing", "int_from_float", "float_parsing", "int_type"):
+        what = "a dollar amount like 25.00" if field.endswith("_cents") else "a whole number"
+        msg = f"{label} must be {what}.{you}"
+    elif kind == "string_too_long":
+        msg = f"{label} is too long.{you}"
+    elif kind == "literal_error":
+        msg = f"{label} must be one of: {ctx.get('expected', 'the listed options')}.{you}"
+    elif kind == "value_error":
+        msg = str(e.get("msg", "")).removeprefix("Value error, ")
+    else:
+        msg = f"{label}: {e.get('msg', 'invalid value')}.{you}"
+    return field, label, msg
 
 
 class SessionStore:
@@ -133,6 +193,15 @@ def create_app(db_path: str | None = None, seed_on_start: bool = True) -> FastAP
     get_model()  # load or train once at startup
     if seed_on_start and not db.get_kv("settings"):
         seed(db, 2)
+
+    @app.exception_handler(RequestValidationError)
+    async def _bad_input(_: Request, e: RequestValidationError):
+        fields = [describe_validation_error(x) for x in e.errors()]
+        return JSONResponse(status_code=422, content={
+            "error": "invalid_input",
+            "message": " ".join(m for _, _, m in fields),
+            "fields": [{"field": f, "label": l, "message": m} for f, l, m in fields],
+        })
 
     @app.exception_handler(ServiceError)
     async def _svc_err(_: Request, e: ServiceError):

@@ -5,7 +5,11 @@ export const money = (cents: number, opts: { sign?: boolean } = {}) => {
   return opts.sign && cents > 0 ? `+${s}` : s
 }
 
-export const dollarsToCents = (v: string) => Math.round(parseFloat(v || '0') * 100)
+/** Dollars typed by a person to cents. Blank or non-numbers give NaN, so callers can say what was wrong. */
+export const dollarsToCents = (v: string) => {
+  const t = v.replace(/[$,\s]/g, '')
+  return t === '' || !/^-?\d*\.?\d*$/.test(t) ? NaN : Math.round(parseFloat(t) * 100)
+}
 export const centsToDollars = (c: number) => (c / 100).toFixed(2).replace(/\.00$/, '')
 
 export const timeLabel = (iso: string) =>
