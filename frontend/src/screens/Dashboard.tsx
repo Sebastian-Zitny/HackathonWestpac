@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Badge } from '@westpac/ui/badge'
-import { FlexiCell, FlexiCellAdornment, FlexiCellHint, FlexiCellLabel } from '@westpac/ui/flexi-cell'
 import { CloseIcon, CreditCardIcon, HeadsetIcon, MoneyInIcon, MoneyOutIcon, PersonIcon, TransferIcon } from '@westpac/ui/icon'
 import { useStore } from '../store'
 import type { Account, Txn } from '../lib/api'
@@ -14,14 +13,19 @@ export function TxnRow({ t, merchantIcon }: { t: Txn; merchantIcon?: string }) {
     : t.merchant_id ? <IconTile icon={(p) => <MerchantIcon icon={merchantIcon} {...p} />} />
       : <IconTile icon={credit ? MoneyInIcon : MoneyOutIcon} tone={credit ? 'success' : 'muted'} />
   return (
-    <FlexiCell tag="li" className="mb-0" before={before}
-      after={<FlexiCellAdornment align="center"><span className={cx('num typography-body-10 font-bold', credit ? 'text-text-success' : 'text-text-body')}>{money(t.amount_cents, { sign: true })}</span></FlexiCellAdornment>}>
-      <FlexiCellLabel truncateText>{t.description}</FlexiCellLabel>
-      <FlexiCellHint>
-        {dateLabel(t.ts)} · {timeLabel(t.ts)}{t.account_id === 'acc-savings' ? ' · eSaver' : ''}
-        {t.is_autotopup ? <Badge color="primary" soft className="ml-1">AutoTopUp</Badge> : null}
-      </FlexiCellHint>
-    </FlexiCell>
+    <li className="flex items-center gap-2 py-1.5">
+      <span className="shrink-0">{before}</span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate typography-body-10 font-medium text-text-body" title={t.description}>{t.description}</p>
+        <p className="truncate typography-body-10 text-text-muted">
+          {dateLabel(t.ts)} · {timeLabel(t.ts)}{t.account_id === 'acc-savings' ? ' · eSaver' : ''}
+        </p>
+        {t.is_autotopup ? <Badge color="primary" soft className="mt-0.5">AutoTopUp</Badge> : null}
+      </div>
+      <span className={cx('num shrink-0 whitespace-nowrap text-right typography-body-10 font-bold', credit ? 'text-text-success' : 'text-text-body')}>
+        {money(t.amount_cents, { sign: true })}
+      </span>
+    </li>
   )
 }
 
