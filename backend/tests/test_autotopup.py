@@ -404,3 +404,26 @@ def test_policy_at_risk_cashflow_prevents_auto():
 def test_policy_hours_wrap_midnight():
     assert pol.within_hours(datetime(2026, 1, 1, 23, 30), "22:00", "06:00")
     assert not pol.within_hours(datetime(2026, 1, 1, 12, 0), "22:00", "06:00")
+
+
+def test_each_browser_session_is_isolated(client):
+    """People sharing a hosted link each get their own accounts: one person's purchase, reset or
+    settings change must not affect another's demo."""
+    a = {"X-Demo-Session": "browser-aaaaaaaa"}
+    b = {"X-Demo-Session": "browser-bbbbbbbb"}
+    start_a = {x["id"]: x["balance_cents"] for x in client.get("/api/state", headers=a).json()["accounts"]}
+    # Browser B resets to scenario 1, then switches AutoTopUp off
+    assert client.post("/api/demo/reset", json={"scenario_id": 1}, headers=b).status_code == 200
+    s = client.get("/api/settings", headers=b).json()
+    s["enabled"] = False
+    assert client.put("/api/settings", json=s, headers=b).status_code == 200
+    # Browser A is untouched: still on, same balances, and its grocery top-up still works
+    assert client.get("/api/settings", headers=a).json()["enabled"] is True
+    assert {x["id"]: x["balance_cents"] for x in client.get("/api/state", headers=a).json()["accounts"]} == start_a
+    intent = client.post("/api/payments", json={"merchant_id": "greenleaf-rochedale", "amount_cents": 8000}, headers=a).json()["intent"]
+    view = client.post(f"/api/payments/{intent['id']}/tap", headers=a).json()
+    assert view["offer"] and view["offer"]["status"] == "PENDING"
+    # Browser B's change stuck for B only
+    assert client.get("/api/settings", headers=b).json()["enabled"] is False
+    # Without a session header the shared database is used (unchanged behaviour)
+    assert client.get("/api/settings").json()["enabled"] is True

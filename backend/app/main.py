@@ -3,11 +3,14 @@ from __future__ import annotations
 
 import gzip
 import os
+import re
+import threading
+from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
 from typing import Literal, Optional
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
@@ -83,12 +86,47 @@ class DemoFlags(BaseModel):
     app_session_authenticated: Optional[bool] = None
 
 
+class SessionStore:
+    """One private, in-memory demo per browser, so people sharing a hosted link can't disturb each other.
+
+    The browser sends a random id in the X-Demo-Session header. Requests without one (tests, curl)
+    use the shared database. Least-recently-used sessions are dropped beyond MAX_SESSIONS.
+    """
+    MAX_SESSIONS = 60
+
+    def __init__(self, shared: tuple[Database, Service]):
+        self.shared = shared
+        self.sessions: OrderedDict[str, tuple[Database, Service]] = OrderedDict()
+        self.lock = threading.Lock()
+
+    def get(self, sid: Optional[str]) -> tuple[Database, Service]:
+        if not sid or not re.fullmatch(r"[A-Za-z0-9_-]{8,64}", sid):
+            return self.shared
+        with self.lock:
+            hit = self.sessions.get(sid)
+            if hit:
+                self.sessions.move_to_end(sid)
+                return hit
+            db = Database(":memory:")
+            seed(db, 2)
+            hit = self.sessions[sid] = (db, Service(db))
+            while len(self.sessions) > self.MAX_SESSIONS:
+                _, (old, _) = self.sessions.popitem(last=False)
+                old.conn.close()
+            return hit
+
+
 def create_app(db_path: str | None = None, seed_on_start: bool = True) -> FastAPI:
     db = Database(db_path)
     svc = Service(db)
     app = FastAPI(title="AutoTopUp AI (prototype)", version="1.0.0",
                   description="Unofficial student hackathon prototype. Simulated data only.")
     app.state.db, app.state.svc = db, svc
+    sessions = app.state.sessions = SessionStore((db, svc))
+
+    def ctx(x_demo_session: Optional[str] = Header(default=None)) -> tuple[Database, Service]:
+        return sessions.get(x_demo_session)
+
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
     app.add_middleware(GZipMiddleware, minimum_size=1000)  # API responses (state is ~13 KB)
 
@@ -105,46 +143,56 @@ def create_app(db_path: str | None = None, seed_on_start: bool = True) -> FastAP
         return {"ok": True, "model": get_model().meta.get("model_version"), "runs_locally": True}
 
     @app.get("/api/state")
-    def state():
+    def state(c: tuple = Depends(ctx)):
+        db, svc = c
         return svc.state()
 
     @app.get("/api/settings")
-    def get_settings():
+    def get_settings(c: tuple = Depends(ctx)):
+        db, svc = c
         return svc.settings()
 
     @app.put("/api/settings")
-    def put_settings(s: Settings):
+    def put_settings(s: Settings, c: tuple = Depends(ctx)):
+        db, svc = c
         data = s.model_dump()
         db.set_kv("settings", data)
         db.audit("settings_updated", data)
         return data
 
     @app.post("/api/assess")
-    def assess(body: AssessIn):
+    def assess(body: AssessIn, c: tuple = Depends(ctx)):
+        db, svc = c
         return svc.assess(body.merchant_id, body.amount_cents)
 
     @app.post("/api/payments")
-    def create_payment(body: IntentIn):
+    def create_payment(body: IntentIn, c: tuple = Depends(ctx)):
+        db, svc = c
         return svc.create_intent(body.merchant_id, body.amount_cents)
 
     @app.get("/api/payments/{iid}")
-    def get_payment(iid: str):
+    def get_payment(iid: str, c: tuple = Depends(ctx)):
+        db, svc = c
         return svc.intent_view(iid)
 
     @app.post("/api/payments/{iid}/tap")
-    def tap(iid: str):
+    def tap(iid: str, c: tuple = Depends(ctx)):
+        db, svc = c
         return svc.tap(iid)
 
     @app.post("/api/topups/{oid}/approve")
-    def approve(oid: str, body: ApproveIn):
+    def approve(oid: str, body: ApproveIn, c: tuple = Depends(ctx)):
+        db, svc = c
         return svc.approve(oid, body.method, body.pin, body.biometric_ok, body.confirm_recognised)
 
     @app.post("/api/topups/{oid}/decline")
-    def decline(oid: str):
+    def decline(oid: str, c: tuple = Depends(ctx)):
+        db, svc = c
         return svc.decline(oid)
 
     @app.get("/api/insights")
-    def insights():
+    def insights(c: tuple = Depends(ctx)):
+        db, svc = c
         return svc.insights()
 
     @app.get("/api/model")
@@ -156,7 +204,8 @@ def create_app(db_path: str | None = None, seed_on_start: bool = True) -> FastAP
         return list(SCENARIOS.values())
 
     @app.post("/api/demo/reset")
-    def reset(body: ResetIn):
+    def reset(body: ResetIn, c: tuple = Depends(ctx)):
+        db, svc = c
         if body.scenario_id not in SCENARIOS:
             raise ServiceError(422, "bad_scenario", "Scenario must be 1, 2 or 3")
         day = datetime.fromisoformat(body.date) if body.date else None
@@ -164,13 +213,15 @@ def create_app(db_path: str | None = None, seed_on_start: bool = True) -> FastAP
         return {"scenario": sc, "state": svc.state()}
 
     @app.post("/api/demo/clock")
-    def set_clock(body: ClockIn):
+    def set_clock(body: ClockIn, c: tuple = Depends(ctx)):
+        db, svc = c
         h, m = map(int, body.time.split(":"))
         db.set_now(db.now().replace(hour=h, minute=m, second=0))
         return {"now": db.now().isoformat()}
 
     @app.post("/api/demo/flags")
-    def flags(body: DemoFlags):
+    def flags(body: DemoFlags, c: tuple = Depends(ctx)):
+        db, svc = c
         if body.security_hold is not None:
             db.set_kv("security_hold", body.security_hold)
         if body.app_session_authenticated is not None:
@@ -179,7 +230,8 @@ def create_app(db_path: str | None = None, seed_on_start: bool = True) -> FastAP
                 "app_session_authenticated": db.get_kv("app_session_authenticated")}
 
     @app.post("/api/notifications/read")
-    def read_notes():
+    def read_notes(c: tuple = Depends(ctx)):
+        db, svc = c
         with db.tx() as c:
             c.execute("UPDATE notifications SET read=1")
         return {"ok": True}

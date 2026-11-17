@@ -78,10 +78,23 @@ export class ApiError extends Error {
   }
 }
 
+/** A private demo per browser: the server keeps separate accounts for each id, so people sharing a hosted link don't clash. */
+function demoSession(): string {
+  const make = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('')
+  try {
+    let id = localStorage.getItem('autotopup-session')
+    if (!id) { id = make(); localStorage.setItem('autotopup-session', id) }
+    return id
+  } catch {
+    return (sessionFallback ??= make())
+  }
+}
+let sessionFallback: string | undefined
+
 async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(`/api${path}`, {
     method,
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    headers: { 'X-Demo-Session': demoSession(), ...(body ? { 'Content-Type': 'application/json' } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   })
   const data = await res.json().catch(() => ({}))
