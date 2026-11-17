@@ -1,0 +1,32 @@
+{
+  "model_version": "iforest-v1",
+  "algorithm": "IsolationForest (scikit-learn)",
+  "n_estimators": 300,
+  "features": [
+    "log_amount_ratio",
+    "amount_deviation",
+    "merchant_visits_log",
+    "category_share",
+    "log_distance_km",
+    "hour_density",
+    "txn_count_1h",
+    "txn_count_24h",
+    "spend_7d_ratio",
+    "topups_7d"
+  ],
+  "training_rows": 15160,
+  "test_rows": 3790,
+  "synthetic_customers": 260,
+  "injected_anomaly_share": 0.0187,
+  "calibration": {
+    "center": -0.023688151698952956,
+    "width": 0.043056834542280036
+  },
+  "evaluation_on_synthetic_holdout": {
+    "note": "Illustrative only: measured on synthetic data with injected anomalies.",
+    "anomalies_flagged_low_trust": 0.985,
+    "ordinary_flagged_low_trust": 0.055,
+    "ordinary_high_trust_share": 0.774
+  },
+  "trained_in_seconds": 2.77
+}
