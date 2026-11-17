@@ -2,7 +2,7 @@ import { Badge } from '@westpac/ui/badge'
 import { BarChartIcon, InfoIcon, SecurityIcon, StarsIcon } from '@westpac/ui/icon'
 import type { Assessment } from '../lib/api'
 import { cx, money, WORKFLOW_SHORT } from '../lib/format'
-import { Card, StatusIcon, TrustBadge, TrustGauge } from './ui'
+import { Card, StatusIcon, TrustGauge } from './ui'
 
 function CardHeading({ icon: I, children, aside }: { icon: typeof StarsIcon; children: React.ReactNode; aside?: React.ReactNode }) {
   return (
@@ -13,26 +13,30 @@ function CardHeading({ icon: I, children, aside }: { icon: typeof StarsIcon; chi
   )
 }
 
-/** Signed horizontal bars: trust points each model feature added (right) or removed (left). */
-export function ContributionBars({ a, limit = 6, barWidth = 96 }: { a: Assessment; limit?: number; barWidth?: number }) {
-  const rows = [...(a.trust.contributions ?? [])].sort((x, y) => Math.abs(y.impact) - Math.abs(x.impact)).slice(0, limit)
+/** Signed bars: how many trust points each signal removed (red, left) or added (green, right). Tiny effects are left out. */
+export function ContributionBars({ a, limit = 6 }: { a: Assessment; limit?: number }) {
+  const rows = [...(a.trust.contributions ?? [])].filter((r) => Math.abs(r.impact) >= 1)
+    .sort((x, y) => Math.abs(y.impact) - Math.abs(x.impact)).slice(0, limit)
+  if (!rows.length) return <p className="typography-body-10 text-text-muted">No single signal moved the score much: everything looked typical for you.</p>
   const max = Math.max(5, ...rows.map((r) => Math.abs(r.impact)))
   return (
-    <ul className="space-y-1" aria-label="Model feature contributions, in trust points">
+    <ul className="space-y-1.5" aria-label="Signals that changed the trust score, in points">
       {rows.map((r) => {
         const w = (Math.abs(r.impact) / max) * 50
         const neg = r.impact < 0
         return (
-          <li key={r.feature} style={{ gridTemplateColumns: `1fr ${barWidth}px 42px` }} className="grid items-center gap-1 typography-body-10"
-            title={`${r.label}: value ${r.value}, typical ${r.typical_value}. Impact ${r.impact > 0 ? '+' : ''}${r.impact} trust points.`}>
-            <span className="truncate text-text-body">{r.label}</span>
-            <span className="relative h-1.5 rounded-sm bg-surface-muted-pale" aria-hidden>
+          <li key={r.feature} className="typography-body-10"
+            title={`${r.label}: value ${r.value}, typical ${r.typical_value}.`}>
+            <div className="flex items-baseline justify-between gap-1">
+              <span className="text-text-body">{r.label}</span>
+              <span className={cx('num shrink-0 font-bold', neg ? 'text-text-danger' : 'text-text-success')}>
+                {Math.abs(r.impact).toFixed(0)} pts {neg ? 'lower' : 'higher'}
+              </span>
+            </div>
+            <span className="relative mt-0.5 block h-1 rounded-sm bg-surface-muted-pale" aria-hidden>
               <span className="absolute inset-y-0 left-1/2 w-px bg-border-muted-mild" />
               <span className={cx('absolute inset-y-0 rounded-sm', neg ? 'bg-surface-danger' : 'bg-surface-success')}
                 style={neg ? { right: '50%', width: `${w}%` } : { left: '50%', width: `${w}%` }} />
-            </span>
-            <span className={cx('num text-right font-bold', neg ? 'text-text-danger' : r.impact > 0 ? 'text-text-success' : 'text-text-muted')}>
-              {r.impact > 0 ? '+' : ''}{r.impact.toFixed(1)}
             </span>
           </li>
         )
@@ -61,13 +65,14 @@ export function AssessmentView({ a }: { a: Assessment }) {
   const score = a.trust.trust_score
   return (
     <div className="space-y-1.5">
-      <Card className="p-2.5 text-center">
-        <div className="flex justify-center"><TrustGauge score={score} /></div>
-        <div className="mt-0.5 flex flex-wrap items-center justify-center gap-1">
-          <TrustBadge score={score} />
+      <Card className="p-2.5">
+        <p className="mb-1 typography-body-10 font-bold text-text-muted">AI trust score · how normal this purchase is for you</p>
+        <TrustGauge score={score} />
+        <div className="mt-2 flex flex-wrap items-center gap-1 border-t border-border-muted-soft pt-1.5 typography-body-10 text-text-body">
+          <span className="text-text-muted">This request:</span>
           <Badge color={a.policy.workflow === 'BLOCKED' ? 'danger' : 'hero'}>{WORKFLOW_SHORT[a.policy.workflow]}</Badge>
         </div>
-        <p className="num mt-1 typography-body-10 text-text-muted">{a.merchant.name} · {money(a.amount_cents)} · shortfall {money(a.shortfall_cents)}</p>
+        <p className="num mt-0.5 typography-body-10 text-text-muted">{a.merchant.name} · {money(a.amount_cents)} · shortfall {money(a.shortfall_cents)}</p>
       </Card>
 
       <Card className="p-2.5">
@@ -80,12 +85,7 @@ export function AssessmentView({ a }: { a: Assessment }) {
           <div key={g.id} className="flex items-start gap-1.5 py-1.5">
             <span className="mt-[2px]"><StatusIcon status={g.status} /></span>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-[0.75rem] font-bold uppercase tracking-wide text-text-muted">{g.title}</span>
-                {g.model_impact !== null && Math.abs(g.model_impact) >= 0.5 && (
-                  <span className={cx('num text-[0.75rem] font-bold', g.model_impact < -1 ? 'text-text-danger' : 'text-text-muted')}>{g.model_impact > 0 ? '+' : ''}{g.model_impact.toFixed(1)} pts</span>
-                )}
-              </div>
+              <span className="text-[0.75rem] font-bold uppercase tracking-wide text-text-muted">{g.title}</span>
               <p className="typography-body-10 font-bold text-text-heading">{g.headline}</p>
               <p className="typography-body-10 text-text-muted">{g.detail}</p>
             </div>
@@ -94,9 +94,9 @@ export function AssessmentView({ a }: { a: Assessment }) {
       </Card>
 
       <Card className="p-2.5">
-        <CardHeading icon={BarChartIcon}>What moved the model's score</CardHeading>
+        <CardHeading icon={BarChartIcon}>What lowered or raised the score</CardHeading>
         <ContributionBars a={a} />
-        <p className="mt-1 text-[0.75rem] text-text-muted">Trust points gained or lost versus a typical value for each feature (Isolation Forest perturbation test).</p>
+        <p className="mt-1 text-[0.75rem] text-text-muted">Each signal compared with a typical purchase for you. The model re-scores the purchase with that signal set to normal and measures the change.</p>
       </Card>
 
       <Card className="p-2.5">

@@ -83,27 +83,67 @@ export function TrustBadge({ score, soft = true }: { score: number; soft?: boole
   return <Badge color={bandOf(score)} soft={soft}>{bandLabel(score)}</Badge>
 }
 
-/** Semi-circular gauge using GEL reserved status tokens for the three illustrative bands. */
-export function TrustGauge({ score, size = 180 }: { score: number; size?: number }) {
-  const r = 70, cx0 = 90, cy0 = 88
-  const pt = (v: number) => {
-    const a = Math.PI * (1 - v / 100)
-    return [cx0 + r * Math.cos(a), cy0 - r * Math.sin(a)]
-  }
-  const arc = (a: number, b: number) => { const [x1, y1] = pt(a); const [x2, y2] = pt(b); return `M${x1} ${y1} A${r} ${r} 0 0 1 ${x2} ${y2}` }
+const ZONES: { band: Band; from: number; to: number; name: string; action: string }[] = [
+  { band: 'danger', from: 0, to: 59, name: 'Low', action: 'PIN + confirm' },
+  { band: 'warning', from: 60, to: 84, name: 'Medium', action: 'Biometrics or PIN' },
+  { band: 'success', from: 85, to: 100, name: 'High', action: 'One tap' },
+]
+const FILL: Record<Band, { on: string; off: string }> = {
+  danger: { on: 'bg-surface-danger', off: 'bg-surface-danger-faint' },
+  warning: { on: 'bg-surface-warning', off: 'bg-surface-warning-faint' },
+  success: { on: 'bg-surface-success', off: 'bg-surface-success-faint' },
+}
+const MEANING: Record<Band, string> = {
+  danger: 'Unusual for you, so it needs your PIN and a confirmation',
+  warning: 'A little different from usual, so it needs biometrics or your PIN',
+  success: 'Routine for you, so it needs the lightest check',
+}
+
+/**
+ * The AI trust score on a labelled 0–100 scale: the three zones with their ranges, what each one asks
+ * the customer to do, and a marker at this purchase's score. Higher = more like the customer's normal spending.
+ */
+export function TrustGauge({ score, compact = false }: { score: number; compact?: boolean }) {
   const band = bandOf(score)
-  const color = `var(--surface-${band})`
-  const [nx, ny] = pt(score)
+  const pos = Math.min(100, Math.max(0, score))
   return (
-    <svg viewBox="0 0 180 104" width={size} height={(size * 104) / 180} role="img" aria-label={`Trust score ${score} out of 100, ${bandLabel(score)}`}>
-      <path d={arc(0, 58.5)} stroke="var(--reserved-danger-100)" strokeWidth="12" fill="none" strokeLinecap="round" />
-      <path d={arc(60.5, 83.5)} stroke="var(--reserved-warning-100)" strokeWidth="12" fill="none" />
-      <path d={arc(85.5, 100)} stroke="var(--reserved-success-100)" strokeWidth="12" fill="none" strokeLinecap="round" />
-      <path d={arc(0, Math.max(score, 0.5))} stroke={color} strokeWidth="12" fill="none" strokeLinecap="round" style={{ transition: 'all .8s ease' }} />
-      <circle cx={nx} cy={ny} r="7" fill="var(--surface-mono)" stroke={color} strokeWidth="3" />
-      <text x="90" y="78" textAnchor="middle" fontSize="30" fontWeight="700" fill="var(--text-heading)" className="num">{score}</text>
-      <text x="90" y="97" textAnchor="middle" fontSize="10" fill="var(--text-muted)">illustrative trust score</text>
-    </svg>
+    <figure className="w-full text-left" aria-label={`AI trust score ${score} out of 100: ${bandLabel(score)}. ${MEANING[band]}.`}>
+      <div className="flex items-baseline gap-1">
+        <span className={cx('num font-bold text-text-heading', compact ? 'typography-body-7' : 'typography-body-5')}>{score}</span>
+        <span className="num typography-body-10 text-text-muted">/ 100</span>
+        <span className="ml-1"><TrustBadge score={score} /></span>
+      </div>
+      {!compact && <p className="mt-0.5 typography-body-10 text-text-body">{MEANING[band]}.</p>}
+
+      <div className="relative mt-3" aria-hidden>
+        {/* marker above the bar */}
+        <div className="absolute -top-[14px] flex -translate-x-1/2 flex-col items-center" style={{ left: `${pos}%` }}>
+          <span className="h-0 w-0 border-x-[6px] border-t-[8px] border-x-transparent border-t-[var(--text-heading)]" />
+        </div>
+        <div className="flex h-1.5 overflow-hidden rounded-full">
+          {ZONES.map((z) => (
+            <span key={z.band} style={{ width: `${z.to - z.from + (z.from ? 0 : 1)}%` }}
+              className={cx('h-full', z.band === band ? FILL[z.band].on : FILL[z.band].off,
+                z.band !== 'danger' && 'border-l-2 border-surface-mono')} />
+          ))}
+        </div>
+      </div>
+      <div className="mt-0.5 flex justify-between text-[0.75rem] text-text-muted" aria-hidden>
+        <span className="num">0</span><span>more unusual · more normal for you</span><span className="num">100</span>
+      </div>
+      {!compact && (
+        <ul className="mt-1.5 space-y-0.5 typography-body-10" aria-hidden>
+          {[...ZONES].reverse().map((z) => (
+            <li key={z.band} className={cx('flex items-center gap-1 rounded-xl px-1 py-0.5', z.band === band ? 'bg-surface-muted-faint font-bold text-text-heading' : 'text-text-muted')}>
+              <span className={cx('size-1 shrink-0 rounded-full', FILL[z.band].on)} />
+              <span className="w-[124px] shrink-0 whitespace-nowrap">{z.name} <span className="num">{z.from}–{z.to}</span></span>
+              <span className="flex-1">{z.action}</span>
+              {z.band === band && <span className="shrink-0 text-[0.75rem] font-normal text-text-muted">this purchase</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </figure>
   )
 }
 

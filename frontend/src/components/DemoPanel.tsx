@@ -2,7 +2,7 @@ import { TuneIcon } from '@westpac/ui/icon'
 import { useStore, type Phase } from '../store'
 import { cx, money } from '../lib/format'
 import { ContributionBars, PolicyChecks } from './AssessmentView'
-import { Card, TrustBadge, TrustGauge } from './ui'
+import { Card, TrustGauge } from './ui'
 
 const STEPS: { label: string; phases: Phase[] }[] = [
   { label: 'Load a scenario', phases: [] },
@@ -46,18 +46,15 @@ export function DemoPanel() {
       </ol>
 
       <Card className="p-2">
-        <PanelHeading aside={a && <TrustBadge score={a.trust.trust_score} />}>What the AI assessed</PanelHeading>
+        <PanelHeading>What the AI assessed</PanelHeading>
         {a ? (
           <>
-            <div className="flex items-center gap-1.5">
-              <TrustGauge score={a.trust.trust_score} size={128} />
-              <div className="typography-body-10 text-text-body">
-                <p>Anomaly score <b className="num">{a.trust.anomaly_score.toFixed(3)}</b></p>
-                <p>Shortfall <b className="num">{money(a.shortfall_cents)}</b></p>
-                <p className="mt-0.5 font-bold text-text-heading">{a.policy.workflow_label}</p>
-              </div>
+            <TrustGauge score={a.trust.trust_score} compact />
+            <div className="mt-1 typography-body-10 text-text-body">
+              <p className="font-bold text-text-heading">{a.policy.workflow_label}</p>
+              <p className="text-text-muted">Shortfall <b className="num text-text-body">{money(a.shortfall_cents)}</b> · anomaly score <span className="num">{a.trust.anomaly_score.toFixed(3)}</span></p>
             </div>
-            <div className="mt-1"><ContributionBars a={a} limit={5} barWidth={72} /></div>
+            <div className="mt-1.5"><ContributionBars a={a} limit={5} /></div>
           </>
         ) : <p className="typography-body-10 text-text-muted">Tap the card on a purchase that needs a top-up to see the live assessment.</p>}
       </Card>
