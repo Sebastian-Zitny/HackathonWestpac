@@ -3,7 +3,7 @@ import { Alert } from '@westpac/ui/alert'
 import { Badge } from '@westpac/ui/badge'
 import { Button } from '@westpac/ui/button'
 import {
-  ArrowLeftIcon, ArrowRightIcon, BackspaceIcon, CreditCardIcon, DollarIcon, HistoryClockIcon, ListIcon, StarsIcon, ErrorIcon, FingerprintIcon, KeyIcon, PadlockIcon, PiggyBankIcon,
+  ArrowLeftIcon, ArrowRightIcon, BackspaceIcon, CreditCardIcon, HistoryClockIcon, StarsIcon, ErrorIcon, FingerprintIcon, KeyIcon, PadlockIcon, PiggyBankIcon,
   SecurityIcon, TickCircleIcon, TransferIcon, WalletIcon,
 } from '@westpac/ui/icon'
 import { useStore } from '../store'
@@ -44,52 +44,48 @@ function BalanceRows({ rows }: { rows: { icon: typeof WalletIcon; name: string; 
 /* ---------------- Screen 3: Payments (phone view) ---------------- */
 export function PayScreen() {
   const { purchase, app, setScreen } = useStore()
-  const [tab, setTab] = useState<'pay' | 'manage'>('pay')
   if (!app) return null
   const icons = Object.fromEntries(app.merchants.map((m) => [m.id, m.icon]))
   const topups = app.transactions.filter((t) => t.is_autotopup && t.kind === 'transfer_in')
   return (
     <div className="anim-fade-up min-h-full bg-background-pale pb-4">
-      <PageHeader<'pay' | 'manage'> title="Payments" active={tab} onTab={setTab}
-        tabs={[{ id: 'pay', label: 'Pay', icon: DollarIcon }, { id: 'manage', label: 'Manage', icon: ListIcon }]} />
-      {tab === 'pay' ? (
-        <div className="px-2 pt-3">
+      <PageHeader title="Payments" />
+      <div className="px-2 pt-3">
+        {/* On small screens the left-hand terminal column is hidden, so the picker and terminal show here instead. */}
+        <div className="md:hidden">
           <h2 className="mb-1 px-1 typography-body-8 font-bold text-text-heading">Tap to pay (simulation)</h2>
           <p className="mb-2 px-1 typography-body-10 text-text-muted">Choose a purchase, then tap your card on the terminal.</p>
           <PurchasePicker />
-          <div className="mt-4 md:hidden">{purchase && <Terminal />}</div>
-          <p className="mt-3 hidden items-center justify-center gap-1 rounded-3xl border border-border-muted-soft bg-surface-mono p-2 typography-body-10 text-text-body md:flex">
-            <ArrowLeftIcon size="small" color="primary" aria-hidden /> The payment terminal is on the left.
-          </p>
-          <div className="mt-3 grid grid-cols-2 gap-1.5">
-            <Tile icon={TransferIcon} label="Card & AutoTopUp" onClick={() => setScreen('cards')} />
-            <Tile icon={StarsIcon} label="AI analysis" onClick={() => setScreen('analysis')} />
-            <Tile icon={HistoryClockIcon} label="Transaction history" onClick={() => setScreen('accounts')} />
-            <Tile icon={CreditCardIcon} label="AutoTopUp limits" onClick={() => setScreen('settings')} />
-          </div>
+          <div className="mt-4">{purchase && <Terminal />}</div>
         </div>
-      ) : (
-        <div className="px-2 pt-3">
-          <h2 id="atu-activity" className="mb-1.5 px-1 typography-body-8 font-bold text-text-heading">AutoTopUp activity</h2>
-          <Card className="px-2">
-            {topups.length === 0 && <p className="py-2 typography-body-10 text-text-muted">No top-ups yet.</p>}
-            <ul aria-labelledby="atu-activity" className="divide-y divide-border-muted-soft">
-              {topups.map((t) => <TxnRow key={t.id} t={t} merchantIcon={t.merchant_id ? icons[t.merchant_id] : undefined} />)}
-            </ul>
-          </Card>
-          <h2 className="mb-1.5 mt-3 px-1 typography-body-8 font-bold text-text-heading">Notifications</h2>
-          <Card className="divide-y divide-border-muted-soft px-2.5">
-            {app.notifications.length === 0 && <p className="py-2 typography-body-10 text-text-muted">No notifications yet.</p>}
-            {app.notifications.slice(0, 10).map((n) => (
-              <div key={n.id} className="py-1.5">
-                <p className="typography-body-10 font-bold text-text-body">{n.title}</p>
-                <p className="typography-body-10 text-text-muted">{n.body}</p>
-                <p className="num text-[0.75rem] text-text-muted">{timeLabel(n.ts)}</p>
-              </div>
-            ))}
-          </Card>
+        <p className="hidden items-center justify-center gap-1 rounded-3xl border border-border-muted-soft bg-surface-mono p-2 typography-body-10 text-text-body md:flex">
+          <ArrowLeftIcon size="small" color="primary" aria-hidden /> Choose a purchase and tap your card on the left.
+        </p>
+        <div className="mt-3 grid grid-cols-2 gap-1.5">
+          <Tile icon={TransferIcon} label="Card & AutoTopUp" onClick={() => setScreen('cards')} />
+          <Tile icon={StarsIcon} label="AI analysis" onClick={() => setScreen('analysis')} />
+          <Tile icon={HistoryClockIcon} label="Transaction history" onClick={() => setScreen('accounts')} />
+          <Tile icon={CreditCardIcon} label="AutoTopUp limits" onClick={() => setScreen('settings')} />
         </div>
-      )}
+        <h2 id="atu-activity" className="mb-1.5 mt-3 px-1 typography-body-8 font-bold text-text-heading">AutoTopUp activity</h2>
+        <Card className="px-2">
+          {topups.length === 0 && <p className="py-2 typography-body-10 text-text-muted">No top-ups yet.</p>}
+          <ul aria-labelledby="atu-activity" className="divide-y divide-border-muted-soft">
+            {topups.map((t) => <TxnRow key={t.id} t={t} merchantIcon={t.merchant_id ? icons[t.merchant_id] : undefined} />)}
+          </ul>
+        </Card>
+        <h2 className="mb-1.5 mt-3 px-1 typography-body-8 font-bold text-text-heading">Notifications</h2>
+        <Card className="divide-y divide-border-muted-soft px-2.5">
+          {app.notifications.length === 0 && <p className="py-2 typography-body-10 text-text-muted">No notifications yet.</p>}
+          {app.notifications.slice(0, 10).map((n) => (
+            <div key={n.id} className="py-1.5">
+              <p className="typography-body-10 font-bold text-text-body">{n.title}</p>
+              <p className="typography-body-10 text-text-muted">{n.body}</p>
+              <p className="num text-[0.75rem] text-text-muted">{timeLabel(n.ts)}</p>
+            </div>
+          ))}
+        </Card>
+      </div>
     </div>
   )
 }
