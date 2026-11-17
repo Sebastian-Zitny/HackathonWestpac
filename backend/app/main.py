@@ -1,6 +1,7 @@
 """FastAPI application for the AutoTopUp AI prototype."""
 from __future__ import annotations
 
+import gzip
 import os
 from datetime import datetime
 from pathlib import Path
@@ -8,8 +9,8 @@ from typing import Literal, Optional
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, Field, field_validator
 
 from .db import Database
@@ -89,6 +90,7 @@ def create_app(db_path: str | None = None, seed_on_start: bool = True) -> FastAP
                   description="Unofficial student hackathon prototype. Simulated data only.")
     app.state.db, app.state.svc = db, svc
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+    app.add_middleware(GZipMiddleware, minimum_size=1000)  # API responses (state is ~13 KB)
 
     get_model()  # load or train once at startup
     if seed_on_start and not db.get_kv("settings"):
@@ -189,7 +191,26 @@ def create_app(db_path: str | None = None, seed_on_start: bool = True) -> FastAP
     # Serve the built frontend (single-service deploy) if it exists
     dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
     if dist.exists():
-        app.mount("/assets", StaticFiles(directory=dist / "assets"), name="assets")
+        # Hashed build files never change, so compress each one once and let browsers cache it for a year.
+        # This matters on small hosts (e.g. Render's free tier), where sending ~730 KB uncompressed is slow.
+        assets_dir = (dist / "assets").resolve()
+        gz_cache: dict[str, bytes] = {}
+        types = {".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml",
+                 ".png": "image/png", ".woff2": "font/woff2", ".json": "application/json"}
+
+        @app.get("/assets/{name:path}")
+        def asset(name: str, request: Request):
+            f = (assets_dir / name).resolve()
+            if assets_dir not in f.parents or not f.is_file():
+                return JSONResponse({"detail": "Not found"}, status_code=404)
+            headers = {"Cache-Control": "public, max-age=31536000, immutable", "Vary": "Accept-Encoding"}
+            media = types.get(f.suffix, "application/octet-stream")
+            if f.suffix in (".js", ".css", ".svg", ".json") and "gzip" in request.headers.get("accept-encoding", ""):
+                body = gz_cache.get(name)
+                if body is None:
+                    body = gz_cache[name] = gzip.compress(f.read_bytes(), compresslevel=9)
+                return Response(body, media_type=media, headers={**headers, "Content-Encoding": "gzip"})
+            return FileResponse(f, media_type=media, headers=headers)
 
         @app.get("/{path:path}")
         def spa(path: str):
